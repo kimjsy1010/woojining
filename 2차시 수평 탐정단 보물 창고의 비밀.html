@@ -1,0 +1,2055 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수평 탐정단: 보물 창고의 비밀</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Noto Sans KR & Jua for detective UI -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;600;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            color: #f8fafc;
+            user-select: none;
+            overflow-x: hidden;
+        }
+
+        .font-jua {
+            font-family: 'Jua', sans-serif;
+        }
+
+        /* Custom Touch-Friendly Targets */
+        .btn-touch {
+            min-height: 56px;
+            touch-action: manipulation;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-touch:active {
+            transform: scale(0.96);
+        }
+
+        /* SVG Scale Beam Smooth Tilt Transition */
+        #scaleBeamGroup, #scalePanLeftGroup, #scalePanRightGroup {
+            transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* Pulse Highlight Effects for Uncompared Items */
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(234, 179, 8, 0.6); transform: scale(1); }
+            50% { box-shadow: 0 0 28px rgba(234, 179, 8, 0.95); transform: scale(1.03); }
+        }
+
+        .highlight-uncompared {
+            animation: pulseGlow 1.8s infinite;
+            border-color: #eab308 !important;
+        }
+
+        /* Detective Clue Card Styling */
+        .clue-card {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(8px);
+            border: 2px solid #334155;
+            transition: all 0.3s ease;
+        }
+
+        /* Modal Overlay backdrop */
+        .modal-backdrop {
+            background-color: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(8px);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-2 md:p-4 text-slate-100">
+
+    <!-- TOP HEADER / STATUS BAR -->
+    <header class="w-full max-w-7xl mx-auto bg-slate-900/90 border border-slate-700/80 rounded-2xl p-3 md:p-4 mb-3 shadow-xl backdrop-blur-md flex flex-wrap justify-between items-center gap-3">
+        <!-- Title & Case Info -->
+        <div class="flex items-center gap-3">
+            <div class="bg-amber-500/20 text-amber-400 p-2 md:p-3 rounded-xl border border-amber-500/40 text-xl md:text-2xl">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+            <div>
+                <h1 class="text-xl md:text-2xl font-black font-jua tracking-wide text-amber-300">
+                    수평 탐정단 <span class="text-slate-400 text-sm font-normal hidden sm:inline">| 보물 창고의 비밀</span>
+                </h1>
+                <p id="caseTitleDisplay" class="text-xs md:text-sm font-bold text-slate-300">
+                    사건 1: 진짜 보물을 찾아라
+                </p>
+            </div>
+        </div>
+
+        <!-- Task Instruction Banner -->
+        <div class="flex-1 max-w-xl mx-2 hidden lg:block">
+            <div id="taskInstruction" class="bg-indigo-950/90 border border-indigo-500/50 text-indigo-200 px-4 py-2 rounded-xl text-center text-sm font-bold shadow-inner">
+                비교할 보물 두 개를 선택해 주세요.
+            </div>
+        </div>
+
+        <!-- Tickets & Controls -->
+        <div class="flex items-center gap-3">
+            <!-- Comparison Tickets Display -->
+            <div class="bg-slate-800/90 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-400">비교권</span>
+                <div id="ticketsContainer" class="flex gap-1 text-amber-400 text-lg">
+                    <i class="fa-solid fa-circle"></i>
+                    <i class="fa-solid fa-circle"></i>
+                </div>
+            </div>
+
+            <!-- Badges Progress -->
+            <div class="bg-slate-800/90 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-400">탐정 배지</span>
+                <div id="badgesContainer" class="flex gap-1.5 text-slate-600 text-base">
+                    <i id="badge1" class="fa-solid fa-award"></i>
+                    <i id="badge2" class="fa-solid fa-award"></i>
+                    <i id="badge3" class="fa-solid fa-award"></i>
+                </div>
+            </div>
+
+            <!-- AI Detective Chat Button -->
+            <button onclick="openAIChatModal()" class="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white border border-indigo-400/50 px-3 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shadow-md flex items-center gap-1.5 hover:scale-105">
+                <i class="fa-solid fa-robot text-amber-300 animate-bounce"></i>
+                <span>AI 수사 반장 대화</span>
+            </button>
+
+            <!-- Teacher Settings Button -->
+            <button onclick="toggleTeacherModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 p-2.5 rounded-xl font-bold text-sm transition-colors flex items-center gap-1.5" title="교사용 설정">
+                <i class="fa-solid fa-gear text-amber-400"></i>
+                <span class="hidden md:inline">교사용</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN INTERACTIVE STAGE -->
+    <main class="w-full max-w-7xl mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch mb-3">
+        
+        <!-- LEFT & CENTER: Balance Scale Simulation Area -->
+        <section class="lg:col-span-8 bg-slate-900/70 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden shadow-2xl min-h-[440px]">
+            <!-- Mobile Task Instruction -->
+            <div id="taskInstructionMobile" class="lg:hidden bg-indigo-950/90 border border-indigo-500/50 text-indigo-200 p-2 rounded-xl text-center text-xs font-bold mb-2">
+                비교할 보물 두 개를 선택해 주세요.
+            </div>
+
+            <!-- Case Intro Overlay (Before starting case) -->
+            <div id="caseIntroOverlay" class="absolute inset-0 bg-slate-950/95 z-20 p-6 flex flex-col items-center justify-center text-center backdrop-blur-md">
+                <div class="w-20 h-20 bg-amber-500/20 text-amber-400 rounded-3xl flex items-center justify-center text-4xl mb-4 border border-amber-500/40 shadow-lg">
+                    <i id="introIcon" class="fa-solid fa-crown"></i>
+                </div>
+                <h2 id="introTitle" class="text-3xl font-black font-jua text-amber-300 mb-2">사건 1: 진짜 보물을 찾아라</h2>
+                <p id="introStory" class="text-slate-300 max-w-lg mb-6 leading-relaxed text-sm md:text-base">
+                    "진짜 보물은 세 보물 중 가장 무겁다."<br>
+                    박물관 보물 창고의 무게 기록이 사라졌습니다! 단 두 번의 비교 기회로 가장 무거운 진짜 보물을 찾아내세요!
+                </p>
+                <div class="flex gap-3">
+                    <button onclick="startCurrentCase()" class="btn-touch px-8 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-lg rounded-2xl shadow-lg border border-amber-300 flex items-center gap-2">
+                        <i class="fa-solid fa-play"></i> 사건 수사 시작하기
+                    </button>
+                </div>
+            </div>
+
+            <!-- BALANCE SCALE VISUAL CONTAINER -->
+            <div class="relative w-full flex-1 flex flex-col items-center justify-center my-2 min-h-[280px]">
+                
+                <!-- SVG Dual Pan Balance Scale -->
+                <svg id="scaleSvg" class="w-full max-w-2xl h-72 overflow-visible select-none" viewBox="0 0 600 300">
+                    <defs>
+                        <linearGradient id="standGrad" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stop-color="#334155" />
+                            <stop offset="50%" stop-color="#64748b" />
+                            <stop offset="100%" stop-color="#334155" />
+                        </linearGradient>
+                        <linearGradient id="beamGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#f8fafc" />
+                            <stop offset="100%" stop-color="#cbd5e1" />
+                        </linearGradient>
+                        <linearGradient id="panGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#475569" />
+                            <stop offset="100%" stop-color="#1e293b" />
+                        </linearGradient>
+                    </defs>
+
+                    <!-- Base Shadow -->
+                    <ellipse cx="300" cy="265" rx="130" ry="12" fill="rgba(0,0,0,0.4)" />
+
+                    <!-- Fulcrum Base Stand -->
+                    <path d="M 270 260 L 290 140 L 310 140 L 330 260 Z" fill="url(#standGrad)" stroke="#475569" stroke-width="3" />
+                    <rect x="230" y="258" width="140" height="12" rx="4" fill="#334155" stroke="#1e293b" stroke-width="2" />
+                    <!-- Center Pivot Pin -->
+                    <circle cx="300" cy="140" r="12" fill="#f59e0b" stroke="#fef3c7" stroke-width="3" />
+
+                    <!-- Tilting Beam Group (Pivot: 300, 140) -->
+                    <g id="scaleBeamGroup" transform="rotate(0, 300, 140)">
+                        <!-- Main Horizon Beam Bar -->
+                        <rect x="70" y="134" width="460" height="12" rx="6" fill="url(#beamGrad)" stroke="#334155" stroke-width="2" />
+                        <!-- Center Pointer Indicator -->
+                        <polygon points="300,134 295,108 305,108" fill="#ef4444" stroke="#991b1b" stroke-width="1" />
+                        <line x1="300" y1="88" x2="300" y2="108" stroke="#f59e0b" stroke-width="2" stroke-dasharray="3,3" />
+
+                        <!-- Distance Markers (Position 2 at x=150 and x=450) -->
+                        <line x1="150" y1="128" x2="150" y2="152" stroke="#eab308" stroke-width="4" stroke-linecap="round" />
+                        <line x1="450" y1="128" x2="450" y2="152" stroke="#eab308" stroke-width="4" stroke-linecap="round" />
+                        <text x="150" y="118" fill="#eab308" font-size="13" font-weight="900" text-anchor="middle">2번 위치</text>
+                        <text x="450" y="118" fill="#eab308" font-size="13" font-weight="900" text-anchor="middle">2번 위치</text>
+
+                        <!-- Left Pan Assembly hanging from x=150, y=140 -->
+                        <g id="scalePanLeftGroup" transform="rotate(0, 150, 140)">
+                            <!-- Hanging Ropes / Chains -->
+                            <line x1="150" y1="140" x2="105" y2="210" stroke="#cbd5e1" stroke-width="2.5" stroke-dasharray="4,2" />
+                            <line x1="150" y1="140" x2="195" y2="210" stroke="#cbd5e1" stroke-width="2.5" stroke-dasharray="4,2" />
+                            <circle cx="150" cy="140" r="5" fill="#eab308" />
+                            <!-- Pan Plate -->
+                            <path d="M 95 210 Q 150 228 205 210 Q 150 202 95 210 Z" fill="url(#panGrad)" stroke="#e2e8f0" stroke-width="2.5" />
+                            <!-- Left Item Anchor (Center at x=150, y=202) -->
+                            <g id="leftPanItemAnchor" transform="translate(150, 202)"></g>
+                        </g>
+
+                        <!-- Right Pan Assembly hanging from x=450, y=140 -->
+                        <g id="scalePanRightGroup" transform="rotate(0, 450, 140)">
+                            <!-- Hanging Ropes / Chains -->
+                            <line x1="450" y1="140" x2="405" y2="210" stroke="#cbd5e1" stroke-width="2.5" stroke-dasharray="4,2" />
+                            <line x1="450" y1="140" x2="495" y2="210" stroke="#cbd5e1" stroke-width="2.5" stroke-dasharray="4,2" />
+                            <circle cx="450" cy="140" r="5" fill="#eab308" />
+                            <!-- Pan Plate -->
+                            <path d="M 395 210 Q 450 228 505 210 Q 450 202 395 210 Z" fill="url(#panGrad)" stroke="#e2e8f0" stroke-width="2.5" />
+                            <!-- Right Item Anchor (Center at x=450, y=202) -->
+                            <g id="rightPanItemAnchor" transform="translate(450, 202)"></g>
+                        </g>
+                    </g>
+                </svg>
+
+                <!-- Result Banner -->
+                <div id="scaleResultBanner" class="mt-2 text-center hidden transition-all duration-500">
+                    <div id="resultText" class="inline-block px-6 py-2 rounded-2xl bg-slate-800 border-2 border-amber-400 text-amber-300 font-bold text-base md:text-lg shadow-xl">
+                        결과 관찰 중...
+                    </div>
+                </div>
+            </div>
+
+            <!-- CLASSROOM PREDICTION INTERACTIVE PANEL -->
+            <div id="predictionPanel" class="w-full bg-slate-800/90 border border-indigo-500/40 rounded-2xl p-3 md:p-4 mt-2 hidden">
+                <div class="text-center mb-3">
+                    <span class="bg-indigo-600/30 text-indigo-300 text-xs font-extrabold px-3 py-1 rounded-full border border-indigo-500/40">
+                        학급 토의 & 몸짓 예상
+                    </span>
+                    <h3 class="text-base md:text-lg font-bold text-slate-100 mt-1">
+                        저울은 어느 쪽으로 기울어질까요?
+                    </h3>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 md:gap-4">
+                    <!-- Left Heavy Button -->
+                    <button id="predLeftBtn" onclick="selectPrediction('left')" class="btn-touch p-2 md:p-3 rounded-xl border-2 border-slate-700 bg-slate-900/80 hover:bg-slate-700 flex flex-col items-center justify-center gap-1 text-xs md:text-sm font-bold text-slate-200 transition-all">
+                        <i class="fa-solid fa-hand-point-left text-indigo-400 text-xl"></i>
+                        <span>왼쪽이 무겁다</span>
+                        <span class="text-[11px] text-slate-400 font-normal hidden sm:inline">(왼손 들기)</span>
+                    </button>
+
+                    <!-- Equal Button -->
+                    <button id="predEqualBtn" onclick="selectPrediction('equal')" class="btn-touch p-2 md:p-3 rounded-xl border-2 border-slate-700 bg-slate-900/80 hover:bg-slate-700 flex flex-col items-center justify-center gap-1 text-xs md:text-sm font-bold text-slate-200 transition-all">
+                        <i class="fa-solid fa-left-right text-emerald-400 text-xl"></i>
+                        <span>무게가 같다</span>
+                        <span class="text-[11px] text-slate-400 font-normal hidden sm:inline">(두 팔 수평)</span>
+                    </button>
+
+                    <!-- Right Heavy Button -->
+                    <button id="predRightBtn" onclick="selectPrediction('right')" class="btn-touch p-2 md:p-3 rounded-xl border-2 border-slate-700 bg-slate-900/80 hover:bg-slate-700 flex flex-col items-center justify-center gap-1 text-xs md:text-sm font-bold text-slate-200 transition-all">
+                        <i class="fa-solid fa-hand-point-right text-indigo-400 text-xl"></i>
+                        <span>오른쪽이 무겁다</span>
+                        <span class="text-[11px] text-slate-400 font-normal hidden sm:inline">(오른손 들기)</span>
+                    </button>
+                </div>
+
+                <!-- Action Confirm Row -->
+                <div class="mt-3 flex justify-center gap-3">
+                    <button id="confirmPredictionBtn" disabled onclick="revealComparisonResult()" class="btn-touch px-6 py-2.5 bg-amber-500 disabled:bg-slate-700 disabled:text-slate-500 hover:bg-amber-400 text-slate-950 font-black text-sm md:text-base rounded-xl transition-all shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-eye"></i> 저울 결과 관찰하기
+                    </button>
+                </div>
+            </div>
+
+            <!-- Save Clue Action Bar -->
+            <div id="saveCluePanel" class="w-full bg-amber-950/40 border border-amber-500/40 rounded-2xl p-3 mt-2 hidden flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2 text-amber-300 text-sm font-bold">
+                    <i class="fa-solid fa-lightbulb text-amber-400 text-lg"></i>
+                    <span id="clueSummarySentence">관찰 결과가 도출되었습니다.</span>
+                </div>
+                <button onclick="saveClueToNotebook()" class="btn-touch px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm md:text-base rounded-xl transition-all shadow-md flex items-center gap-2 ml-auto">
+                    <i class="fa-solid fa-book-bookmark"></i> 단서 수첩에 기록하기
+                </button>
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: Detective Clue Notebook -->
+        <section class="lg:col-span-4 bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between shadow-xl">
+            <div>
+                <!-- Notebook Header -->
+                <div class="flex justify-between items-center pb-3 mb-3 border-b border-slate-700">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-book-open text-amber-400 text-xl"></i>
+                        <h2 class="text-lg font-black font-jua text-amber-300">탐정 단서 수첩</h2>
+                    </div>
+                    <button onclick="toggleClueSymbols()" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 px-2.5 py-1 rounded-lg font-semibold transition-colors">
+                        <i class="fa-solid fa-code-compare mr-1"></i> <span id="symbolToggleText">기호 보기 ON</span>
+                    </button>
+                </div>
+
+                <!-- Saved Clues List -->
+                <div id="cluesList" class="space-y-3 min-h-[180px]">
+                    <div class="text-center py-8 text-slate-500 text-xs border-2 border-dashed border-slate-800 rounded-xl">
+                        <i class="fa-solid fa-folder-open text-2xl mb-2 block opacity-40"></i>
+                        아직 수집된 단서가 없습니다.<br>저울에서 두 보물을 비교해 보세요!
+                    </div>
+                </div>
+
+                <!-- AI Assistant Hint Panel -->
+                <div id="aiAssistantBox" class="mt-3 bg-indigo-950/70 border border-indigo-500/40 rounded-xl p-3 text-xs">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <div class="flex items-center gap-1.5 font-bold text-indigo-300">
+                            <i class="fa-solid fa-user-ninja text-amber-400"></i>
+                            <span>AI 수사 반장의 단서 조언</span>
+                        </div>
+                        <button id="ttsPlayBtn" onclick="speakAIHintTTS()" class="hidden text-[11px] bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
+                            <i class="fa-solid fa-volume-high"></i> 음성 듣기
+                        </button>
+                    </div>
+                    <div id="aiHintContent" class="text-slate-300 leading-relaxed font-medium">
+                        "저울로 두 보물을 비교하면 수사 단서가 쌓입니다! 도움이 필요하면 상단의 [AI 수사 반장] 버튼을 누르세요."
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Area: Final Deduction Trigger -->
+            <div class="pt-4 border-t border-slate-800 mt-3">
+                <button id="startDeductionBtn" disabled onclick="openFinalDeductionModal()" class="w-full btn-touch py-3.5 bg-emerald-600 disabled:bg-slate-800 disabled:text-slate-600 disabled:border-slate-700 hover:bg-emerald-500 text-white font-black text-base rounded-xl transition-all shadow-lg border border-emerald-400 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-key"></i> 최종 추리하기
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- BOTTOM SECTION: Treasure Cards Array -->
+    <footer class="w-full max-w-7xl mx-auto bg-slate-900/90 border border-slate-800 rounded-2xl p-3 md:p-4 shadow-xl">
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="text-xs md:text-sm font-bold text-slate-400 flex items-center gap-2">
+                <i class="fa-solid fa-boxes-stacked text-amber-400"></i>
+                보물 창고의 보물 목록 (비교할 보물 2개를 누르세요)
+            </h3>
+            <button id="resetSelectionBtn" onclick="clearSelectedPair()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1 rounded-lg border border-slate-700 font-semibold transition-all">
+                <i class="fa-solid fa-rotate-left mr-1"></i> 다시 선택
+            </button>
+        </div>
+
+        <!-- Treasure Cards Grid -->
+        <div id="treasureCardsGrid" class="grid grid-cols-3 gap-3 md:gap-4">
+            <!-- Rendered dynamically -->
+        </div>
+    </footer>
+
+    <!-- MODAL 1: FINAL DEDUCTION DIALOG -->
+    <div id="deductionModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-amber-500/60 rounded-3xl p-6 max-w-xl w-full shadow-2xl relative">
+            <div class="text-center mb-4">
+                <span class="bg-amber-500/20 text-amber-300 text-xs font-black px-3 py-1 rounded-full border border-amber-500/40">
+                    최종 사건 해결
+                </span>
+                <h2 id="deductionQuestion" class="text-2xl font-black font-jua text-amber-300 mt-2">
+                    가장 무거운 진짜 보물은 무엇일까요?
+                </h2>
+                <p class="text-slate-400 text-xs md:text-sm mt-1">
+                    단서 수첩의 관찰 결과를 바탕으로 추리해 보세요!
+                </p>
+            </div>
+
+            <div id="deductionOptionsGrid" class="grid grid-cols-3 gap-3 my-4"></div>
+
+            <div id="deductionHintBox" class="hidden bg-red-950/60 border border-red-500/40 text-red-200 p-3 rounded-xl text-xs md:text-sm text-center mb-4">
+                <i class="fa-solid fa-circle-info mr-1 text-red-400"></i>
+                <span id="deductionHintText">단서 수첩을 다시 살펴보세요!</span>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2 border-t border-slate-800">
+                <button onclick="closeModal('deductionModal')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-sm">
+                    단서 다시 보기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: EVIDENCE EXPLANATION DIALOG -->
+    <div id="evidenceModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-emerald-500/60 rounded-3xl p-6 max-w-xl w-full shadow-2xl relative">
+            <div class="text-center mb-4">
+                <div class="w-14 h-14 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-2 border border-emerald-500/40">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <h2 class="text-2xl font-black font-jua text-emerald-300">
+                    그렇게 생각한 까닭은 무엇인가요?
+                </h2>
+                <p class="text-slate-300 text-xs md:text-sm mt-1">
+                    저울의 관찰 결과 중 완전한 근거가 되는 두 단서를 선택해 주세요.
+                </p>
+            </div>
+
+            <div id="evidenceOptionsList" class="space-y-2.5 my-4"></div>
+
+            <div class="flex justify-center pt-2">
+                <button id="completeCaseBtn" disabled onclick="verifyAndSolveCase()" class="btn-touch px-8 py-3 bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 hover:bg-emerald-400 text-slate-950 font-black text-base rounded-2xl transition-all shadow-lg border border-emerald-300 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-check"></i> 사건 해결 완료!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: CASE RESOLVED CELEBRATION DIALOG -->
+    <div id="solvedModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-amber-400 rounded-3xl p-6 md:p-8 max-w-lg w-full text-center shadow-2xl relative">
+            <div class="w-24 h-24 bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 rounded-full flex items-center justify-center text-5xl mx-auto mb-4 border-4 border-amber-300 shadow-xl animate-bounce">
+                <i class="fa-solid fa-award"></i>
+            </div>
+            <h2 class="text-3xl font-black font-jua text-amber-300 mb-1">
+                사건 해결 성공!
+            </h2>
+            <p class="text-sm font-bold text-amber-200/80 mb-4">
+                수평 탐정단의 완벽한 관찰과 추리!
+            </p>
+
+            <div class="bg-slate-800/90 border border-slate-700 p-4 rounded-2xl text-left text-xs md:text-sm space-y-2 mb-6">
+                <div class="flex justify-between items-center text-amber-400 font-bold border-b border-slate-700 pb-1">
+                    <span><i class="fa-solid fa-quote-left mr-1"></i> AI 탐정 수사 리포트</span>
+                    <button onclick="speakAIReportTTS()" class="text-[11px] bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
+                        <i class="fa-solid fa-volume-high"></i> 음성 듣기
+                    </button>
+                </div>
+                <div id="solvedSummaryText" class="text-slate-200 leading-relaxed min-h-[50px]">
+                    <i class="fa-solid fa-spinner fa-spin text-amber-400"></i> AI 수사 반장이 리포트를 작성 중입니다...
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-3 justify-center">
+                <button onclick="goToCaseSelection()" class="btn-touch px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm rounded-xl border border-slate-600">
+                    <i class="fa-solid fa-list mr-1"></i> 사건 목록으로
+                </button>
+                <button onclick="nextCase()" class="btn-touch px-8 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm rounded-xl border border-amber-300 shadow-md">
+                    다음 사건 수사하기 <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: INTERACTIVE AI DETECTIVE CHAT MODAL -->
+    <div id="aiChatModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-3 md:p-4">
+        <div class="bg-slate-900 border-2 border-purple-500/60 rounded-3xl p-4 md:p-6 max-w-2xl w-full h-[85vh] flex flex-col justify-between shadow-2xl relative">
+            <!-- Header -->
+            <div class="flex justify-between items-center pb-3 border-b border-slate-700">
+                <div class="flex items-center gap-2">
+                    <div class="w-10 h-10 rounded-xl bg-purple-600/30 border border-purple-400 flex items-center justify-center text-amber-300 text-xl">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg md:text-xl font-black font-jua text-purple-300">AI 수사 반장과의 토의실</h2>
+                        <p class="text-[11px] text-slate-400">저울 원리, 단서 연결, 무거운 보물 추리법을 편하게 질문하세요!</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('aiChatModal')" class="text-slate-400 hover:text-white text-xl p-2">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Chat History Area -->
+            <div id="aiChatHistory" class="flex-1 overflow-y-auto my-3 space-y-3 pr-1 text-xs md:text-sm">
+                <!-- AI Welcome Message -->
+                <div class="flex gap-2.5 items-start">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0 font-bold text-xs">
+                        AI
+                    </div>
+                    <div class="bg-slate-800 border border-slate-700 p-3 rounded-2xl rounded-tl-none max-w-[85%] text-slate-200">
+                        안녕하세요, 수평 탐정단! 🕵️‍♂️<br>
+                        현재 사건에 대해 궁금한 점이나 다음 단서 추리 방법이 궁금하면 언제든 물어보세요!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Suggestion Chips -->
+            <div class="flex gap-1.5 overflow-x-auto py-2 border-t border-slate-800 text-[11px] shrink-0 scrollbar-none">
+                <span class="text-slate-400 self-center whitespace-nowrap">추천 질문:</span>
+                <button onclick="sendAIChatMessage('왕관이 구슬보다 무겁고, 구슬이 열쇠보다 무거우면 왜 왕관이 가장 무겁나요?')" class="bg-purple-950/80 hover:bg-purple-900 border border-purple-500/40 text-purple-200 px-2.5 py-1 rounded-full whitespace-nowrap">
+                    💡 단서 연결 원리 질문
+                </button>
+                <button onclick="sendAIChatMessage('다음에 어떤 두 보물을 비교하는 게 가장 효율적인가요?')" class="bg-purple-950/80 hover:bg-purple-900 border border-purple-500/40 text-purple-200 px-2.5 py-1 rounded-full whitespace-nowrap">
+                    ⚖️ 다음 비교 추천
+                </button>
+                <button onclick="sendAIChatMessage('양팔저울에서 수평이 된다는 건 어떤 뜻인가요?')" class="bg-purple-950/80 hover:bg-purple-900 border border-purple-500/40 text-purple-200 px-2.5 py-1 rounded-full whitespace-nowrap">
+                    🔍 수평의 의미
+                </button>
+            </div>
+
+            <!-- Input Area -->
+            <div class="flex gap-2 pt-2 border-t border-slate-800">
+                <input id="aiChatInput" type="text" placeholder="AI 수사 반장에게 질문하기..." onkeydown="if(event.key==='Enter') triggerSendAIChat()" class="flex-1 bg-slate-950 border border-purple-500/40 rounded-xl px-4 py-2.5 text-xs md:text-sm text-slate-100 focus:outline-none focus:border-amber-400">
+                <button onclick="triggerSendAIChat()" class="btn-touch px-5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs md:text-sm rounded-xl shadow flex items-center gap-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-paper-plane"></i> 전송
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 4: TEACHER SETTINGS MODAL -->
+    <div id="teacherModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-slate-600 rounded-3xl p-6 max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-700 mb-4">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-amber-400 text-xl"></i>
+                    <h2 class="text-xl font-black font-jua text-amber-300">교사용 수업 설정 & AI 기능</h2>
+                </div>
+                <button onclick="toggleTeacherModal()" class="text-slate-400 hover:text-white text-xl">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-xs md:text-sm">
+                <!-- AI Custom Case Generator Section -->
+                <div class="bg-gradient-to-r from-purple-950/80 to-indigo-950/80 p-4 rounded-xl border border-purple-500/40">
+                    <h3 class="font-bold text-purple-200 mb-2 flex items-center gap-1.5 text-sm">
+                        <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i>
+                        <span>AI 맞춤 사건 생성기 (Gemini API)</span>
+                    </h3>
+                    <p class="text-[11px] text-purple-300/80 mb-3">
+                        학급 주제나 아이들이 좋아하는 주제(예: 우주, 공룡, 과자나라, 해적선)를 입력하면 Gemini AI가 새로운 탐정 사건을 즉석에서 제작합니다.
+                    </p>
+                    <div class="flex gap-2 mb-2">
+                        <input id="aiCaseTopicInput" type="text" placeholder="예: 우주 탐험, 공룡 화석, 해적 보물선" class="flex-1 bg-slate-900 border border-purple-500/50 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-400">
+                        <button onclick="generateCustomAICase()" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black px-4 py-2 rounded-xl text-xs transition-all shadow flex items-center gap-1.5 whitespace-nowrap">
+                            <i class="fa-solid fa-bolt"></i> 사건 생성
+                        </button>
+                    </div>
+                    <div class="flex gap-1.5 flex-wrap">
+                        <span class="text-[10px] text-purple-300">추천 키워드:</span>
+                        <button onclick="document.getElementById('aiCaseTopicInput').value='우주 과학 기지'; generateCustomAICase();" class="text-[10px] bg-purple-900/60 hover:bg-purple-800 text-purple-200 px-2 py-0.5 rounded border border-purple-700">🚀 우주 과학</button>
+                        <button onclick="document.getElementById('aiCaseTopicInput').value='공룡 시대 화석'; generateCustomAICase();" class="text-[10px] bg-purple-900/60 hover:bg-purple-800 text-purple-200 px-2 py-0.5 rounded border border-purple-700">🦕 공룡 화석</button>
+                        <button onclick="document.getElementById('aiCaseTopicInput').value='달콤한 과자 성'; generateCustomAICase();" class="text-[10px] bg-purple-900/60 hover:bg-purple-800 text-purple-200 px-2 py-0.5 rounded border border-purple-700">🍰 과자 성</button>
+                    </div>
+                </div>
+
+                <!-- Select Case -->
+                <div class="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700">
+                    <label class="font-bold text-slate-300 block mb-2">
+                        <i class="fa-solid fa-folder-tree text-amber-400 mr-1"></i> 사건 바로 이동:
+                    </label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <button onclick="changeCase(1)" class="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold text-slate-200">
+                            사건 1 (무거운)
+                        </button>
+                        <button onclick="changeCase(2)" class="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold text-slate-200">
+                            사건 2 (쌍둥이)
+                        </button>
+                        <button onclick="changeCase(3)" class="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold text-slate-200">
+                            사건 3 (가짜)
+                        </button>
+                        <button onclick="changeCase('random')" class="p-2 bg-amber-600/30 hover:bg-amber-600/50 border border-amber-500/40 rounded-lg text-xs font-bold text-amber-300">
+                            무작위 사건
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Teacher Helper Tools & Hints -->
+                <div class="bg-indigo-950/60 p-4 rounded-xl border border-indigo-500/40">
+                    <h3 class="font-bold text-indigo-300 mb-2 flex items-center justify-between">
+                        <span><i class="fa-solid fa-eye text-indigo-400 mr-1"></i> 교사용 정답 및 추천 비교 (학생 비공개)</span>
+                        <button onclick="toggleTeacherSecretView()" class="text-[11px] bg-indigo-900 hover:bg-indigo-800 px-2 py-0.5 rounded text-indigo-200">
+                            열기 / 숨기기
+                        </button>
+                    </h3>
+                    <div id="teacherSecretArea" class="hidden space-y-2 text-xs text-indigo-100 bg-slate-950/80 p-3 rounded-lg border border-indigo-900">
+                        <p id="teacherSecretWeights">내부 무게값: -</p>
+                        <p id="teacherSecretBestPair">추천 비교 조합: -</p>
+                    </div>
+                </div>
+
+                <!-- Assistant Ticket Bonus -->
+                <div class="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700 flex items-center justify-between">
+                    <div>
+                        <div class="font-bold text-slate-200">보조 비교권 지급 (+1회)</div>
+                        <div class="text-[11px] text-slate-400">학생들의 비교 선택이 잘못되었을 때 수업 흐름을 위해 추가 기회를 줍니다.</div>
+                    </div>
+                    <button onclick="grantExtraTicket()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs">
+                        비교권 +1
+                    </button>
+                </div>
+
+                <!-- Settings Controls -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700 flex items-center justify-between">
+                        <span class="font-bold text-slate-300">효과음</span>
+                        <button id="soundToggleBtn" onclick="toggleSound()" class="px-3 py-1 bg-emerald-600 text-white font-bold rounded-lg text-xs">
+                            켜짐
+                        </button>
+                    </div>
+                    <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700 flex items-center justify-between">
+                        <span class="font-bold text-slate-300">무작위 무게</span>
+                        <button id="randomWeightBtn" onclick="toggleRandomWeights()" class="px-3 py-1 bg-slate-700 text-slate-300 font-bold rounded-lg text-xs">
+                            꺼짐
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end">
+                <button onclick="toggleTeacherModal()" class="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-sm">
+                    닫기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // GLOBAL GAME STATE
+        const detectiveState = {
+            caseId: 1, // 1, 2, 3, or 'random'
+            phase: 'intro', // 'intro', 'select-pair', 'predict', 'reveal', 'save-clue', 'final-deduction', 'explain', 'complete'
+            items: [],
+            selectedPair: [],
+            comparisonTickets: 2,
+            clues: [],
+            classPrediction: null, // 'left', 'equal', 'right'
+            currentComparisonResult: null, // 'left-heavy', 'equal', 'right-heavy'
+            attempts: 0,
+            badges: [false, false, false],
+            teacherSettings: {
+                soundOn: true,
+                showSymbols: true,
+                randomizeWeights: false
+            },
+            currentAiHintText: "", // Stores latest AI hint for TTS
+            currentAiReportText: "" // Stores latest solved report text for TTS
+        };
+
+        // GEMINI IMAGEN 4.0 IMAGE GENERATION HELPER
+        async function callImagenAPI(prompt) {
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
+
+            const payload = {
+                instances: [{ prompt: `Child-friendly vibrant 3D video game rendering of a ${prompt}, shiny metallic finish, cartoon style, clear outline, isolated on dark background` }],
+                parameters: { sampleCount: 1 }
+            };
+
+            let attempts = 0;
+            let delay = 1000;
+            while (attempts < 3) {
+                try {
+                    const res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const data = await res.json();
+                    if (data.predictions && data.predictions.length > 0 && data.predictions[0].bytesBase64Encoded) {
+                        return `data:image/png;base64,${data.predictions[0].bytesBase64Encoded}`;
+                    }
+                    return null;
+                } catch (err) {
+                    attempts++;
+                    if (attempts >= 3) return null;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        // GEMINI API CALLING HELPERS
+        async function callGeminiTextAPI(systemPrompt, userQuery) {
+            const apiKey = ""; // Canvas runtime automatically injects API key
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+
+            let attempts = 0;
+            let delay = 1000;
+            while (attempts < 3) {
+                try {
+                    const res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const data = await res.json();
+                    return data?.candidates?.[0]?.content?.parts?.[0]?.text || "Gemini 응답을 받지 못했습니다.";
+                } catch (err) {
+                    attempts++;
+                    if (attempts >= 3) throw err;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        async function callGeminiStructuredAPI(systemPrompt, userQuery, responseSchema) {
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: responseSchema
+                }
+            };
+
+            let attempts = 0;
+            let delay = 1000;
+            while (attempts < 3) {
+                try {
+                    const res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const data = await res.json();
+                    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                    return JSON.parse(text);
+                } catch (err) {
+                    attempts++;
+                    if (attempts >= 3) throw err;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        // GEMINI TTS AUDIO GENERATION & PLAYBACK
+        async function callGeminiTTSAPI(textToSpeak) {
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{
+                    parts: [{ text: `Say cheerfully and clearly like a friendly elementary school detective captain: ${textToSpeak}` }]
+                }],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: { voiceName: "Puck" }
+                        }
+                    }
+                }
+            };
+
+            let attempts = 0;
+            let delay = 1000;
+            while (attempts < 3) {
+                try {
+                    const res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const data = await res.json();
+                    const part = data?.candidates?.[0]?.content?.parts?.[0];
+                    const audioData = part?.inlineData?.data;
+                    const mimeType = part?.inlineData?.mimeType;
+
+                    if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                        const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+                        const sampleRate = sampleRateMatch ? parseInt(sampleRateMatch[1], 10) : 24000;
+                        const arrayBuffer = base64ToArrayBuffer(audioData);
+                        const pcm16 = new Int16Array(arrayBuffer);
+                        const wavBlob = pcmToWav(pcm16, sampleRate);
+                        return URL.createObjectURL(wavBlob);
+                    }
+                    throw new Error("No audio data returned");
+                } catch (err) {
+                    attempts++;
+                    if (attempts >= 3) throw err;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        // INTERACTIVE AI CHAT MODAL LOGIC
+        function openAIChatModal() {
+            playSelectSound();
+            document.getElementById('aiChatModal').classList.remove('hidden');
+        }
+
+        function triggerSendAIChat() {
+            const input = document.getElementById('aiChatInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+            input.value = '';
+            sendAIChatMessage(msg);
+        }
+
+        async function sendAIChatMessage(userMsg) {
+            const history = document.getElementById('aiChatHistory');
+
+            // Render User Bubble
+            const userBubble = `
+                <div class="flex gap-2.5 items-start justify-end">
+                    <div class="bg-purple-600 text-white p-3 rounded-2xl rounded-tr-none max-w-[85%] text-slate-100">
+                        ${userMsg}
+                    </div>
+                </div>
+            `;
+            history.innerHTML += userBubble;
+
+            // Render AI Loading Bubble
+            const loadingId = 'aiLoading_' + Date.now();
+            const aiLoadingBubble = `
+                <div id="${loadingId}" class="flex gap-2.5 items-start">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0 font-bold text-xs">
+                        AI
+                    </div>
+                    <div class="bg-slate-800 border border-slate-700 p-3 rounded-2xl rounded-tl-none max-w-[85%] text-slate-300">
+                        <i class="fa-solid fa-spinner fa-spin text-purple-400 mr-1.5"></i> 단서와 수평 원리를 생각하는 중...
+                    </div>
+                </div>
+            `;
+            history.innerHTML += aiLoadingBubble;
+            history.scrollTop = history.scrollHeight;
+
+            const sysPrompt = `당신은 초등학교 3학년 과학 '수평 잡기로 무게 비교' 단원의 다정하고 밝은 AI 수사 반장입니다.
+초등학교 3학년 눈높이에 맞춰 친절하게 2~3문장으로 답변하세요.
+절대 최종 정답을 직접 말해주지 말고, 탐정 수평잡기 원리($A > B$ 이고 $B > C$ 이면 $A > C$)를 스스로 유도하도록 격려해 주세요.`;
+
+            let cluesText = detectiveState.clues.map(c => `${c.leftItem.name} ${c.symbol} ${c.rightItem.name}`).join(', ');
+            if (!cluesText) cluesText = "아직 수집된 비교 단서 없음";
+
+            const userQuery = `[사건 정보]
+제목: ${detectiveState.activeCaseInfo?.title || "사건 1"}
+수집 단서: ${cluesText}
+남은 비교권: ${detectiveState.comparisonTickets}개
+
+학생 질문: "${userMsg}"`;
+
+            try {
+                const responseText = await callGeminiTextAPI(sysPrompt, userQuery);
+                const loadingEl = document.getElementById(loadingId);
+                if (loadingEl) {
+                    loadingEl.outerHTML = `
+                        <div class="flex gap-2.5 items-start">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0 font-bold text-xs">
+                                AI
+                            </div>
+                            <div class="bg-slate-800 border border-slate-700 p-3 rounded-2xl rounded-tl-none max-w-[85%] text-slate-200 leading-relaxed">
+                                <div>${responseText}</div>
+                                <button onclick="speakTextTTS(this, \`${responseText.replace(/`/g, '')}\`)" class="mt-2 text-[11px] bg-purple-900/60 hover:bg-purple-800 text-purple-200 border border-purple-500/40 px-2 py-0.5 rounded font-bold flex items-center gap-1">
+                                    <i class="fa-solid fa-volume-high"></i> 음성 듣기
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+                history.scrollTop = history.scrollHeight;
+            } catch (err) {
+                const loadingEl = document.getElementById(loadingId);
+                if (loadingEl) {
+                    loadingEl.innerText = "응답을 불러오는 중 오류가 발생했습니다.";
+                }
+            }
+        }
+
+        async function speakTextTTS(btnEl, text) {
+            if (!text) return;
+            const originalText = btnEl.innerHTML;
+            btnEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 생생 음성 생성 중...`;
+            btnEl.disabled = true;
+
+            try {
+                const audioUrl = await callGeminiTTSAPI(text);
+                const audio = new Audio(audioUrl);
+                audio.play();
+                btnEl.innerHTML = `<i class="fa-solid fa-volume-high animate-pulse"></i> 재생 중`;
+                audio.onended = () => {
+                    btnEl.innerHTML = originalText;
+                    btnEl.disabled = false;
+                };
+            } catch (e) {
+                btnEl.innerHTML = originalText;
+                btnEl.disabled = false;
+                showToast("음성 재생 실패");
+            }
+        }
+
+        // Helper: Base64 to ArrayBuffer
+        function base64ToArrayBuffer(base64) {
+            const binaryString = window.atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        // Helper: Convert PCM16 array to playable WAV Blob
+        function pcmToWav(pcm16Array, sampleRate = 24000) {
+            const numChannels = 1;
+            const byteRate = sampleRate * numChannels * 2;
+            const blockAlign = numChannels * 2;
+            const dataSize = pcm16Array.length * 2;
+            const buffer = new ArrayBuffer(44 + dataSize);
+            const view = new DataView(buffer);
+
+            // RIFF chunk descriptor
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + dataSize, true);
+            writeString(view, 8, 'WAVE');
+            // fmt sub-chunk
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, 16, true);
+            // data sub-chunk
+            writeString(view, 36, 'data');
+            view.setUint32(40, dataSize, true);
+
+            // Write PCM samples
+            let offset = 44;
+            for (let i = 0; i < pcm16Array.length; i++, offset += 2) {
+                view.setInt16(offset, pcm16Array[i], true);
+            }
+
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        // AI HINT REQUEST HANDLER
+        async function requestAIHint() {
+            playSelectSound();
+            const hintBox = document.getElementById('aiHintContent');
+            const ttsBtn = document.getElementById('ttsPlayBtn');
+            hintBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-400 mr-1"></i> AI 수사 반장이 현재 단서를 분석 중입니다...`;
+            ttsBtn.classList.add('hidden');
+
+            const sysPrompt = `당신은 초등학교 3학년 과학 '수평 잡기로 무게 비교' 단원의 친절하고 명쾌한 AI 수사 반장입니다.
+학생들이 정답을 직접 찾을 수 있도록 소크라테스식 힌트를 2~3문장의 짧고 열정적인 말투로 제시하세요. 절대 최종 정답을 직접 말하지 마세요.`;
+
+            let cluesText = detectiveState.clues.map(c => {
+                if (c.result === 'left-heavy') return `[${c.leftItem.name} > ${c.rightItem.name}]`;
+                if (c.result === 'right-heavy') return `[${c.rightItem.name} > ${c.leftItem.name}]`;
+                return `[${c.leftItem.name} = ${c.rightItem.name}]`;
+            }).join(', ');
+
+            if (!cluesText) cluesText = "아직 수집된 저울 비교 단서가 없음";
+
+            const userQuery = `현재 사건: ${detectiveState.activeCaseInfo.title}
+목표: ${detectiveState.activeCaseInfo.targetQuestion}
+등장 보물: ${detectiveState.items.map(i => i.name).join(', ')}
+현재 수집된 단서: ${cluesText}
+남은 비교 기회: ${detectiveState.comparisonTickets}회
+
+학생들에게 도움이 되는 탐정 가이드 힌트를 작성해 주세요.`;
+
+            try {
+                const responseText = await callGeminiTextAPI(sysPrompt, userQuery);
+                detectiveState.currentAiHintText = responseText;
+                hintBox.innerText = `"${responseText}"`;
+                ttsBtn.classList.remove('hidden');
+                showToast("AI 수사 반장의 힌트가 도착했습니다!");
+            } catch (err) {
+                hintBox.innerText = "힌트를 가져오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+            }
+        }
+
+        // SPEAK AI HINT VIA GEMINI TTS
+        async function speakAIHintTTS() {
+            if (!detectiveState.currentAiHintText) return;
+            const ttsBtn = document.getElementById('ttsPlayBtn');
+            const originalHtml = ttsBtn.innerHTML;
+            ttsBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 음성 생성 중...`;
+            ttsBtn.disabled = true;
+
+            try {
+                const audioUrl = await callGeminiTTSAPI(detectiveState.currentAiHintText);
+                const audio = new Audio(audioUrl);
+                audio.play();
+                ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high text-amber-300 animate-pulse"></i> 재생 중`;
+                audio.onended = () => {
+                    ttsBtn.innerHTML = originalHtml;
+                    ttsBtn.disabled = false;
+                };
+            } catch (err) {
+                showToast("음성 생성에 실패했습니다.");
+                ttsBtn.innerHTML = originalHtml;
+                ttsBtn.disabled = false;
+            }
+        }
+
+        // AI CUSTOM CASE GENERATOR
+        async function generateCustomAICase() {
+            const topicInput = document.getElementById('aiCaseTopicInput').value.trim() || "우주 과학 기지";
+            playSelectSound();
+            showToast(`AI가 '${topicInput}' 주제로 사건과 3D 보물 이미지를 창작하는 중...`);
+
+            const sysPrompt = "You are an expert elementary science game designer. Generate a creative balance scale detective case for 3rd graders in Korean.";
+            const userPrompt = `주제: "${topicInput}". 
+3학년 과학 수평잡기 단원에 맞는 사건 1개를 생성하세요.
+보물 3개, 무게 [1, 2, 3] 또는 [2, 2, 3] 설정, 사건 제목, 스토리, 목표 유형(heaviest, lightest, equal 중 하나)을 반환하세요. FontAwesome 6 아이콘 클래스명도 지정하세요.`;
+
+            const schema = {
+                type: "OBJECT",
+                properties: {
+                    title: { type: "STRING" },
+                    story: { type: "STRING" },
+                    targetType: { type: "STRING", enum: ["heaviest", "lightest", "equal"] },
+                    targetQuestion: { type: "STRING" },
+                    items: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                id: { type: "STRING" },
+                                name: { type: "STRING" },
+                                desc: { type: "STRING" },
+                                iconClass: { type: "STRING" },
+                                iconColor: { type: "STRING" },
+                                weight: { type: "NUMBER" }
+                            },
+                            required: ["id", "name", "desc", "iconClass", "iconColor", "weight"]
+                        }
+                    }
+                },
+                required: ["title", "story", "targetType", "targetQuestion", "items"]
+            };
+
+            try {
+                const generatedCase = await callGeminiStructuredAPI(sysPrompt, userPrompt, schema);
+
+                // Generate Imagen 4.0 artwork for each treasure item
+                for (let item of generatedCase.items) {
+                    const imgData = await callImagenAPI(item.name);
+                    if (imgData) {
+                        item.imgUrl = imgData;
+                    }
+                }
+
+                generatedCase.items = generatedCase.items.map(it => {
+                    const iconClass = it.iconClass || 'fa-gem';
+                    const iconColor = it.iconColor || 'text-amber-400';
+                    const customImgHtml = it.imgUrl ? `<img src="${it.imgUrl}" class="w-10 h-10 object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]" />` : null;
+
+                    return {
+                        id: it.id,
+                        name: it.name,
+                        desc: it.desc,
+                        imgUrl: it.imgUrl || null,
+                        iconSvg: customImgHtml || `<i class="fa-solid ${iconClass} ${iconColor} text-3xl"></i>`,
+                        panIconHtml: customImgHtml || `<i class="fa-solid ${iconClass} ${iconColor} text-4xl drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]"></i>`,
+                        weight: Number(it.weight)
+                    };
+                });
+                generatedCase.icon = "fa-wand-magic-sparkles";
+
+                detectiveState.caseId = 'custom_ai';
+                detectiveState.activeCaseInfo = generatedCase;
+                detectiveState.items = generatedCase.items;
+
+                // Reset case state
+                detectiveState.phase = 'intro';
+                detectiveState.comparisonTickets = 2;
+                detectiveState.selectedPair = [];
+                detectiveState.clues = [];
+                detectiveState.classPrediction = null;
+                detectiveState.currentComparisonResult = null;
+                detectiveState.attempts = 0;
+
+                // Update Intro Modal Screen
+                document.getElementById('introTitle').innerText = generatedCase.title;
+                document.getElementById('introStory').innerHTML = generatedCase.story;
+                document.getElementById('caseIntroOverlay').classList.remove('hidden');
+
+                toggleTeacherModal();
+                resetScaleVisual();
+                renderUI();
+
+                showToast("✨ AI 맞춤 사건 및 3D 보물 생성이 완료되었습니다!");
+            } catch (err) {
+                console.error(err);
+                showToast("AI 사건 생성 중 오류가 발생했습니다.");
+            }
+        }
+
+        // WEB AUDIO SYNTHESIZER
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioCtx();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playTone(freq, type = 'sine', duration = 0.15, gainVal = 0.1) {
+            if (!detectiveState.teacherSettings.soundOn) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        function playClickSound() { playTone(520, 'triangle', 0.08, 0.15); }
+        function playSelectSound() { playTone(659.25, 'sine', 0.15, 0.2); }
+        function playScaleSound() {
+            if (!detectiveState.teacherSettings.soundOn) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.6);
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.6);
+            } catch (e) {}
+        }
+        function playClueSound() {
+            playTone(523.25, 'sine', 0.1, 0.15);
+            setTimeout(() => playTone(659.25, 'sine', 0.1, 0.15), 100);
+            setTimeout(() => playTone(783.99, 'sine', 0.2, 0.2), 200);
+        }
+        function playSuccessSound() {
+            const notes = [523.25, 659.25, 783.99, 1046.50];
+            notes.forEach((freq, idx) => {
+                setTimeout(() => playTone(freq, 'triangle', 0.25, 0.25), idx * 120);
+            });
+        }
+        function playHintSound() { playTone(300, 'sine', 0.25, 0.15); }
+
+        // CASE PRESETS DEFINITION (With updated crystal orb graphics & icons)
+        const CASES_DATA = {
+            1: {
+                title: "사건 1: 진짜 보물을 찾아라",
+                icon: "fa-crown",
+                story: "“진짜 보물은 세 보물 중 가장 무겁다.”<br>박물관 기록이 사라졌습니다. 두 번의 저울 비교로 가장 무거운 진짜 보물을 찾으세요!",
+                targetType: "heaviest",
+                targetQuestion: "가장 무거운 진짜 보물은 무엇일까요?",
+                items: [
+                    { 
+                        id: "crown", 
+                        name: "황금 왕관", 
+                        desc: "화려하게 빛나는 왕관", 
+                        iconSvg: '<i class="fa-solid fa-crown text-amber-400 text-3xl"></i>', 
+                        panIconHtml: '<i class="fa-solid fa-crown text-amber-400 text-4xl drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]"></i>',
+                        weight: 3 
+                    },
+                    { 
+                        id: "crystal", 
+                        name: "수정 구슬", 
+                        desc: "신비로운 푸른 빛의 구슬", 
+                        iconSvg: '<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 via-cyan-300 to-white shadow-[0_0_12px_rgba(34,211,238,0.9)] border-2 border-white/90 inline-block"></div>', 
+                        panIconHtml: '<div class="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-500 via-cyan-300 to-white shadow-[0_0_18px_rgba(34,211,238,1)] border-2 border-white inline-block"></div>',
+                        weight: 2 
+                    },
+                    { 
+                        id: "key", 
+                        name: "보석 열쇠", 
+                        desc: "보증된 황금 열쇠", 
+                        iconSvg: '<i class="fa-solid fa-key text-emerald-400 text-3xl"></i>', 
+                        panIconHtml: '<i class="fa-solid fa-key text-emerald-400 text-4xl drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]"></i>',
+                        weight: 1 
+                    }
+                ]
+            },
+            2: {
+                title: "사건 2: 쌍둥이 보물을 찾아라",
+                icon: "fa-gem",
+                story: "“겉모습은 다르지만 무게가 똑같은 보물 두 개가 있다.”<br>무게가 같은 쌍둥이 보물 쌍을 찾아내세요!",
+                targetType: "equal",
+                targetQuestion: "무게가 서로 같은 쌍둥이 보물은 무엇일까요?",
+                items: [
+                    { 
+                        id: "starGem", 
+                        name: "별 모양 보석", 
+                        desc: "반짝이는 별 모양", 
+                        iconSvg: '<i class="fa-solid fa-star text-amber-300 text-3xl"></i>', 
+                        panIconHtml: '<i class="fa-solid fa-star text-amber-300 text-4xl drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]"></i>',
+                        weight: 2 
+                    },
+                    { 
+                        id: "moonGem", 
+                        name: "달 모양 보석", 
+                        desc: "은은한 은빛 달", 
+                        iconSvg: '<i class="fa-solid fa-moon text-indigo-300 text-3xl"></i>', 
+                        panIconHtml: '<i class="fa-solid fa-moon text-indigo-300 text-4xl drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]"></i>',
+                        weight: 2 
+                    },
+                    { 
+                        id: "sunGem", 
+                        name: "해 모양 보석", 
+                        desc: "이글거리는 태양", 
+                        iconSvg: '<i class="fa-solid fa-sun text-orange-400 text-3xl"></i>', 
+                        panIconHtml: '<i class="fa-solid fa-sun text-orange-400 text-4xl drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]"></i>',
+                        weight: 3 
+                    }
+                ]
+            },
+            3: {
+                title: "사건 3: 가짜 보물을 찾아라",
+                icon: "fa-feather",
+                story: "“가짜 보물은 겉모습은 화려하지만 속이 비어 있어 가장 가볍다.”<br>크기에 속지 마세요! 저울 결과를 바탕으로 가장 가벼운 가짜 보물을 찾아내세요!",
+                targetType: "lightest",
+                targetQuestion: "가장 가벼운 가짜 보물은 무엇일까요?",
+                items: [
+                    { 
+                        id: "featherCrown", 
+                        name: "깃털 왕관", 
+                        desc: "거대한 크기의 왕관", 
+                        iconSvg: '<i class="fa-solid fa-feather-pointed text-rose-300 text-4xl"></i>', 
+                        panIconHtml: '<i class="fa-solid fa-feather-pointed text-rose-300 text-5xl drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]"></i>',
+                        weight: 1 
+                    },
+                    { 
+                        id: "crystalBox", 
+                        name: "수정 상자", 
+                        desc: "중간 크기의 상자", 
+                        iconSvg: '<i class="fa-solid fa-box-open text-cyan-300 text-3xl"></i>', 
+                        panIconHtml: '<i class="fa-solid fa-box-open text-cyan-300 text-4xl drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]"></i>',
+                        weight: 2 
+                    },
+                    { 
+                        id: "goldCoin", 
+                        name: "황금 동전", 
+                        desc: "작고 묵직한 동전", 
+                        iconSvg: '<i class="fa-solid fa-coins text-amber-400 text-2xl"></i>', 
+                        panIconHtml: '<i class="fa-solid fa-coins text-amber-400 text-3xl drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]"></i>',
+                        weight: 3 
+                    }
+                ]
+            }
+        };
+
+        window.onload = function() {
+            setupCase(1);
+            renderUI();
+        };
+
+        // SETUP CASE DATA
+        function setupCase(caseNum) {
+            detectiveState.caseId = caseNum;
+            detectiveState.phase = 'intro';
+            detectiveState.comparisonTickets = 2;
+            detectiveState.selectedPair = [];
+            detectiveState.clues = [];
+            detectiveState.classPrediction = null;
+            detectiveState.currentComparisonResult = null;
+            detectiveState.attempts = 0;
+
+            let caseInfo;
+            if (caseNum === 'random') {
+                caseInfo = generateRandomCase();
+            } else {
+                caseInfo = JSON.parse(JSON.stringify(CASES_DATA[caseNum]));
+            }
+
+            if (detectiveState.teacherSettings.randomizeWeights) {
+                const weights = caseInfo.targetType === 'equal' ? [1, 1, 2] : [1, 2, 3];
+                shuffleArray(weights);
+                caseInfo.items.forEach((item, idx) => item.weight = weights[idx]);
+            }
+
+            detectiveState.items = caseInfo.items;
+            detectiveState.activeCaseInfo = caseInfo;
+
+            resetScaleVisual();
+            renderUI();
+        }
+
+        function generateRandomCase() {
+            const types = ['heaviest', 'equal', 'lightest'];
+            const targetType = types[Math.floor(Math.random() * types.length)];
+            let title = "무작위 사건: 비밀 보물 조사";
+            let question = "가장 무거운 보물은 무엇일까요?";
+
+            if (targetType === 'equal') {
+                title = "무작위 사건: 쌍둥이 보물 조사";
+                question = "무게가 같은 보물 쌍은 무엇일까요?";
+            } else if (targetType === 'lightest') {
+                title = "무작위 사건: 가짜 보물 조사";
+                question = "가장 가벼운 보물은 무엇일까요?";
+            }
+
+            const items = [
+                { 
+                    id: "itemA", 
+                    name: "보물 A (다이아)", 
+                    desc: "푸른 빛의 보석", 
+                    iconSvg: '<i class="fa-solid fa-diamond text-cyan-300 text-3xl"></i>', 
+                    panIconHtml: '<i class="fa-solid fa-diamond text-cyan-300 text-4xl drop-shadow"></i>',
+                    weight: 1 
+                },
+                { 
+                    id: "itemB", 
+                    name: "보물 B (에메랄드)", 
+                    desc: "초록 빛의 보석", 
+                    iconSvg: '<i class="fa-solid fa-gem text-emerald-400 text-3xl"></i>', 
+                    panIconHtml: '<i class="fa-solid fa-gem text-emerald-400 text-4xl drop-shadow"></i>',
+                    weight: 2 
+                },
+                { 
+                    id: "itemC", 
+                    name: "보물 C (루비)", 
+                    desc: "붉은 빛의 보석", 
+                    iconSvg: '<i class="fa-solid fa-shield-halved text-rose-400 text-3xl"></i>', 
+                    panIconHtml: '<i class="fa-solid fa-shield-halved text-rose-400 text-4xl drop-shadow"></i>',
+                    weight: 3 
+                }
+            ];
+
+            const weights = targetType === 'equal' ? [2, 2, 3] : [1, 2, 3];
+            shuffleArray(weights);
+            items.forEach((item, idx) => item.weight = weights[idx]);
+
+            return {
+                title: title,
+                icon: "fa-dice",
+                story: "보물 창고의 무작위 비밀 사건이 생성되었습니다! 단서를 조합하여 사건을 수사하세요.",
+                targetType: targetType,
+                targetQuestion: question,
+                items: items
+            };
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // RENDER UI STATE
+        function renderUI() {
+            const caseInfo = detectiveState.activeCaseInfo;
+
+            document.getElementById('caseTitleDisplay').innerText = caseInfo.title;
+            
+            // Render Tickets
+            const ticketsContainer = document.getElementById('ticketsContainer');
+            ticketsContainer.innerHTML = '';
+            for (let i = 0; i < detectiveState.comparisonTickets; i++) {
+                ticketsContainer.innerHTML += '<i class="fa-solid fa-circle text-amber-400 animate-pulse"></i>';
+            }
+            if (detectiveState.comparisonTickets === 0) {
+                ticketsContainer.innerHTML = '<span class="text-xs font-bold text-slate-500">모두 사용함</span>';
+            }
+
+            // Render Badges
+            for (let b = 1; b <= 3; b++) {
+                const badgeEl = document.getElementById(`badge${b}`);
+                if (detectiveState.badges[b - 1]) {
+                    badgeEl.className = "fa-solid fa-award text-amber-400 drop-shadow";
+                } else {
+                    badgeEl.className = "fa-solid fa-award text-slate-700";
+                }
+            }
+
+            updateInstructionBanner();
+            renderTreasureCards();
+            renderClueNotebook();
+            updateTeacherSecretView();
+
+            // Deduction Button State
+            const startDeductionBtn = document.getElementById('startDeductionBtn');
+            if (detectiveState.clues.length >= 2 || detectiveState.comparisonTickets === 0) {
+                startDeductionBtn.disabled = false;
+                startDeductionBtn.classList.add('animate-bounce');
+            } else {
+                startDeductionBtn.disabled = true;
+                startDeductionBtn.classList.remove('animate-bounce');
+            }
+        }
+
+        function updateInstructionBanner() {
+            const taskEl = document.getElementById('taskInstruction');
+            const taskMobileEl = document.getElementById('taskInstructionMobile');
+
+            let msg = "비교할 보물 두 개를 선택해 주세요.";
+
+            if (detectiveState.phase === 'select-pair') {
+                if (detectiveState.selectedPair.length === 0) {
+                    msg = "첫 번째 비교할 보물을 선택해 주세요.";
+                } else if (detectiveState.selectedPair.length === 1) {
+                    msg = "두 번째 비교할 보물을 선택해 주세요.";
+                } else {
+                    msg = "두 보물이 선택되었습니다! 저울에 올릴 준비 완료.";
+                }
+            } else if (detectiveState.phase === 'predict') {
+                msg = "저울이 어느 쪽으로 기울어질지 학급 예상을 선택해 주세요.";
+            } else if (detectiveState.phase === 'reveal') {
+                msg = "저울의 관찰 결과를 확인하세요.";
+            } else if (detectiveState.phase === 'save-clue') {
+                msg = "관찰 결과를 단서 수첩에 기록해 주세요.";
+            } else if (detectiveState.phase === 'final-deduction') {
+                msg = "수집된 단서를 연결하여 최종 정답을 추리하세요!";
+            }
+
+            taskEl.innerText = msg;
+            taskMobileEl.innerText = msg;
+        }
+
+        function renderTreasureCards() {
+            const grid = document.getElementById('treasureCardsGrid');
+            grid.innerHTML = '';
+
+            let uncomparedItemId = null;
+            if (detectiveState.clues.length === 1) {
+                const comparedIds = [detectiveState.clues[0].leftItem.id, detectiveState.clues[0].rightItem.id];
+                const uncompared = detectiveState.items.find(it => !comparedIds.includes(it.id));
+                if (uncompared) uncomparedItemId = uncompared.id;
+            }
+
+            detectiveState.items.forEach(item => {
+                const isSelected = detectiveState.selectedPair.includes(item.id);
+                const isUncompared = (item.id === uncomparedItemId && detectiveState.selectedPair.length < 2);
+
+                let cardBorderClass = "border-slate-700 bg-slate-800/80 hover:bg-slate-700/80";
+                if (isSelected) {
+                    cardBorderClass = "border-amber-400 bg-amber-500/10 shadow-lg scale-105";
+                } else if (isUncompared) {
+                    cardBorderClass = "highlight-uncompared bg-slate-800/90";
+                }
+
+                const compareCount = detectiveState.clues.filter(c => c.leftItem.id === item.id || c.rightItem.id === item.id).length;
+
+                const cardHtml = `
+                    <button onclick="handleTreasureCardClick('${item.id}')" class="btn-touch p-3 rounded-2xl border-2 ${cardBorderClass} flex flex-col items-center text-center justify-between relative transition-all">
+                        ${isSelected ? '<span class="absolute top-2 right-2 bg-amber-400 text-slate-950 rounded-full w-6 h-6 flex items-center justify-center font-black text-xs shadow">✓</span>' : ''}
+                        ${isUncompared ? '<span class="absolute -top-2 bg-amber-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full shadow">조사 필요</span>' : ''}
+                        
+                        <div class="my-1 flex items-center justify-center h-10">
+                            ${item.iconSvg}
+                        </div>
+                        <div>
+                            <div class="font-bold text-sm md:text-base text-slate-100 font-jua">${item.name}</div>
+                            <div class="text-[11px] text-slate-400">${item.desc}</div>
+                        </div>
+                        <div class="mt-2 text-[10px] bg-slate-900/80 px-2 py-0.5 rounded-full border border-slate-700 text-slate-400">
+                            비교 ${compareCount}회
+                        </div>
+                    </button>
+                `;
+                grid.innerHTML += cardHtml;
+            });
+        }
+
+        function handleTreasureCardClick(itemId) {
+            if (detectiveState.phase !== 'intro' && detectiveState.phase !== 'select-pair') return;
+
+            playClickSound();
+            detectiveState.phase = 'select-pair';
+
+            const idx = detectiveState.selectedPair.indexOf(itemId);
+            if (idx > -1) {
+                detectiveState.selectedPair.splice(idx, 1);
+            } else {
+                if (detectiveState.selectedPair.length < 2) {
+                    detectiveState.selectedPair.push(itemId);
+                } else {
+                    detectiveState.selectedPair[1] = itemId;
+                }
+            }
+
+            updateScaleItemsOnPan();
+
+            if (detectiveState.selectedPair.length === 2) {
+                if (isPairAlreadyCompared(detectiveState.selectedPair[0], detectiveState.selectedPair[1])) {
+                    showToast("이미 비교한 보물 조합입니다! 다른 조합을 선택해 주세요.");
+                    detectiveState.selectedPair.pop();
+                    updateScaleItemsOnPan();
+                    renderUI();
+                    return;
+                }
+
+                detectiveState.phase = 'predict';
+                document.getElementById('predictionPanel').classList.remove('hidden');
+                document.getElementById('saveCluePanel').classList.add('hidden');
+            } else {
+                document.getElementById('predictionPanel').classList.add('hidden');
+            }
+
+            renderUI();
+        }
+
+        function isPairAlreadyCompared(idA, idB) {
+            return detectiveState.clues.some(clue => {
+                const cA = clue.leftItem.id;
+                const cB = clue.rightItem.id;
+                return (cA === idA && cB === idB) || (cA === idB && cB === idA);
+            });
+        }
+
+        function clearSelectedPair() {
+            playClickSound();
+            detectiveState.selectedPair = [];
+            detectiveState.phase = 'select-pair';
+            document.getElementById('predictionPanel').classList.add('hidden');
+            document.getElementById('saveCluePanel').classList.add('hidden');
+            resetScaleVisual();
+            renderUI();
+        }
+
+        // UPDATED: Use foreignObject to place items securely on SVG scale pans
+        function updateScaleItemsOnPan() {
+            const leftAnchor = document.getElementById('leftPanItemAnchor');
+            const rightAnchor = document.getElementById('rightPanItemAnchor');
+
+            leftAnchor.innerHTML = '';
+            rightAnchor.innerHTML = '';
+
+            if (detectiveState.selectedPair.length >= 1) {
+                const item1 = detectiveState.items.find(i => i.id === detectiveState.selectedPair[0]);
+                if (item1) {
+                    const contentHtml = item1.imgUrl ? `<img src="${item1.imgUrl}" class="w-12 h-12 object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]" />` : (item1.panIconHtml || item1.iconSvg);
+                    leftAnchor.innerHTML = `
+                        <foreignObject x="-30" y="-55" width="60" height="60" class="overflow-visible">
+                            <div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full flex items-center justify-center select-none">
+                                ${contentHtml}
+                            </div>
+                        </foreignObject>
+                    `;
+                }
+            }
+            if (detectiveState.selectedPair.length >= 2) {
+                const item2 = detectiveState.items.find(i => i.id === detectiveState.selectedPair[1]);
+                if (item2) {
+                    const contentHtml = item2.imgUrl ? `<img src="${item2.imgUrl}" class="w-12 h-12 object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]" />` : (item2.panIconHtml || item2.iconSvg);
+                    rightAnchor.innerHTML = `
+                        <foreignObject x="-30" y="-55" width="60" height="60" class="overflow-visible">
+                            <div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full flex items-center justify-center select-none">
+                                ${contentHtml}
+                            </div>
+                        </foreignObject>
+                    `;
+                }
+            }
+        }
+
+        function resetScaleVisual() {
+            const beam = document.getElementById('scaleBeamGroup');
+            const panLeft = document.getElementById('scalePanLeftGroup');
+            const panRight = document.getElementById('scalePanRightGroup');
+
+            beam.setAttribute('transform', 'rotate(0, 300, 140)');
+            panLeft.setAttribute('transform', 'rotate(0, 150, 140)');
+            panRight.setAttribute('transform', 'rotate(0, 450, 140)');
+
+            document.getElementById('leftPanItemAnchor').innerHTML = '';
+            document.getElementById('rightPanItemAnchor').innerHTML = '';
+            document.getElementById('scaleResultBanner').classList.add('hidden');
+        }
+
+        function selectPrediction(predType) {
+            playSelectSound();
+            detectiveState.classPrediction = predType;
+
+            const leftBtn = document.getElementById('predLeftBtn');
+            const equalBtn = document.getElementById('predEqualBtn');
+            const rightBtn = document.getElementById('predRightBtn');
+
+            leftBtn.className = "btn-touch p-2 md:p-3 rounded-xl border-2 border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center gap-1 text-xs md:text-sm font-bold text-slate-200 transition-all";
+            equalBtn.className = "btn-touch p-2 md:p-3 rounded-xl border-2 border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center gap-1 text-xs md:text-sm font-bold text-slate-200 transition-all";
+            rightBtn.className = "btn-touch p-2 md:p-3 rounded-xl border-2 border-slate-700 bg-slate-900/80 flex flex-col items-center justify-center gap-1 text-xs md:text-sm font-bold text-slate-200 transition-all";
+
+            if (predType === 'left') leftBtn.className = "btn-touch p-2 md:p-3 rounded-xl border-2 border-amber-400 bg-amber-500/20 flex flex-col items-center justify-center gap-1 text-xs md:text-sm font-bold text-amber-300 transition-all shadow-lg scale-105";
+            if (predType === 'equal') equalBtn.className = "btn-touch p-2 md:p-3 rounded-xl border-2 border-emerald-400 bg-emerald-500/20 flex flex-col items-center justify-center gap-1 text-xs md:text-sm font-bold text-emerald-300 transition-all shadow-lg scale-105";
+            if (predType === 'right') rightBtn.className = "btn-touch p-2 md:p-3 rounded-xl border-2 border-amber-400 bg-amber-500/20 flex flex-col items-center justify-center gap-1 text-xs md:text-sm font-bold text-amber-300 transition-all shadow-lg scale-105";
+
+            document.getElementById('confirmPredictionBtn').disabled = false;
+        }
+
+        function revealComparisonResult() {
+            playScaleSound();
+            detectiveState.phase = 'reveal';
+
+            document.getElementById('predictionPanel').classList.add('hidden');
+
+            const item1 = detectiveState.items.find(i => i.id === detectiveState.selectedPair[0]);
+            const item2 = detectiveState.items.find(i => i.id === detectiveState.selectedPair[1]);
+
+            let tiltAngle = 0; // 0 for equal
+            let resultType = 'equal';
+
+            if (item1.weight > item2.weight) {
+                tiltAngle = -10; // Left pan down
+                resultType = 'left-heavy';
+            } else if (item1.weight < item2.weight) {
+                tiltAngle = 10; // Right pan down
+                resultType = 'right-heavy';
+            }
+
+            detectiveState.currentComparisonResult = resultType;
+
+            const beam = document.getElementById('scaleBeamGroup');
+            const panLeft = document.getElementById('scalePanLeftGroup');
+            const panRight = document.getElementById('scalePanRightGroup');
+
+            // Wobble effect then settle
+            beam.setAttribute('transform', 'rotate(3, 300, 140)');
+            panLeft.setAttribute('transform', 'rotate(-3, 150, 140)');
+            panRight.setAttribute('transform', 'rotate(-3, 450, 140)');
+
+            setTimeout(() => {
+                beam.setAttribute('transform', `rotate(${tiltAngle}, 300, 140)`);
+                panLeft.setAttribute('transform', `rotate(${-tiltAngle}, 150, 140)`);
+                panRight.setAttribute('transform', `rotate(${-tiltAngle}, 450, 140)`);
+            }, 300);
+
+            setTimeout(() => {
+                const banner = document.getElementById('scaleResultBanner');
+                const resultTextEl = document.getElementById('resultText');
+                const clueSummarySentence = document.getElementById('clueSummarySentence');
+                banner.classList.remove('hidden');
+
+                let resultSentence = "";
+                if (resultType === 'left-heavy') {
+                    resultSentence = `저울이 왼쪽으로 기울었습니다! [${item1.name}]이(가) [${item2.name}]보다 더 무겁습니다.`;
+                } else if (resultType === 'right-heavy') {
+                    resultSentence = `저울이 오른쪽으로 기울었습니다! [${item2.name}]이(가) [${item1.name}]보다 더 무겁습니다.`;
+                } else {
+                    resultSentence = `저울이 완벽한 수평을 이루었습니다! 두 보물의 무게가 같습니다.`;
+                }
+
+                resultTextEl.innerHTML = resultSentence;
+                clueSummarySentence.innerText = resultSentence;
+
+                detectiveState.phase = 'save-clue';
+                document.getElementById('saveCluePanel').classList.remove('hidden');
+                renderUI();
+            }, 1000);
+        }
+
+        function saveClueToNotebook() {
+            playClueSound();
+
+            const item1 = detectiveState.items.find(i => i.id === detectiveState.selectedPair[0]);
+            const item2 = detectiveState.items.find(i => i.id === detectiveState.selectedPair[1]);
+            const res = detectiveState.currentComparisonResult;
+
+            let symbolStr = "=";
+            if (res === 'left-heavy') symbolStr = ">";
+            if (res === 'right-heavy') symbolStr = "<";
+
+            const clueObj = {
+                clueNum: detectiveState.clues.length + 1,
+                leftItem: item1,
+                rightItem: item2,
+                result: res,
+                symbol: symbolStr
+            };
+
+            detectiveState.clues.push(clueObj);
+
+            if (detectiveState.comparisonTickets > 0) {
+                detectiveState.comparisonTickets--;
+            }
+
+            detectiveState.selectedPair = [];
+            document.getElementById('saveCluePanel').classList.add('hidden');
+            resetScaleVisual();
+
+            detectiveState.phase = 'select-pair';
+            renderUI();
+
+            showToast(`단서 ${clueObj.clueNum}이(가) 탐정 수첩에 기록되었습니다!`);
+        }
+
+        function renderClueNotebook() {
+            const container = document.getElementById('cluesList');
+
+            if (detectiveState.clues.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-slate-500 text-xs border-2 border-dashed border-slate-800 rounded-xl">
+                        <i class="fa-solid fa-folder-open text-2xl mb-2 block opacity-40"></i>
+                        아직 수집된 단서가 없습니다.<br>저울에서 두 보물을 비교해 보세요!
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = '';
+            detectiveState.clues.forEach((clue) => {
+                let textRel = `${clue.leftItem.name} = ${clue.rightItem.name}`;
+                if (clue.result === 'left-heavy') textRel = `${clue.leftItem.name} > ${clue.rightItem.name}`;
+                if (clue.result === 'right-heavy') textRel = `${clue.leftItem.name} < ${clue.rightItem.name}`;
+
+                const card = `
+                    <div class="clue-card p-3 rounded-xl border border-slate-700 flex flex-col gap-2">
+                        <div class="flex justify-between items-center border-b border-slate-700/60 pb-1.5">
+                            <span class="bg-amber-500/20 text-amber-300 font-bold text-xs px-2 py-0.5 rounded border border-amber-500/30">
+                                [단서 ${clue.clueNum}]
+                            </span>
+                            <span class="text-xs font-bold text-slate-300 font-jua">${textRel}</span>
+                        </div>
+                        <div class="flex items-center justify-around bg-slate-950/60 p-2 rounded-lg border border-slate-800 text-xs">
+                            <div class="flex items-center gap-1.5 font-bold text-slate-200">
+                                ${clue.leftItem.iconSvg}
+                                <span>${clue.leftItem.name}</span>
+                            </div>
+                            <div class="text-amber-400 font-black text-lg px-2">
+                                ${detectiveState.teacherSettings.showSymbols ? clue.symbol : '⚖️'}
+                            </div>
+                            <div class="flex items-center gap-1.5 font-bold text-slate-200">
+                                ${clue.rightItem.iconSvg}
+                                <span>${clue.rightItem.name}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += card;
+            });
+        }
+
+        function toggleClueSymbols() {
+            playClickSound();
+            detectiveState.teacherSettings.showSymbols = !detectiveState.teacherSettings.showSymbols;
+            document.getElementById('symbolToggleText').innerText = detectiveState.teacherSettings.showSymbols ? "기호 보기 ON" : "기호 보기 OFF";
+            renderClueNotebook();
+        }
+
+        function openFinalDeductionModal() {
+            playSelectSound();
+            detectiveState.phase = 'final-deduction';
+
+            const modal = document.getElementById('deductionModal');
+            const qEl = document.getElementById('deductionQuestion');
+            const optionsGrid = document.getElementById('deductionOptionsGrid');
+            const caseInfo = detectiveState.activeCaseInfo;
+
+            qEl.innerText = caseInfo.targetQuestion;
+            optionsGrid.innerHTML = '';
+            document.getElementById('deductionHintBox').classList.add('hidden');
+
+            if (caseInfo.targetType === 'heaviest' || caseInfo.targetType === 'lightest') {
+                detectiveState.items.forEach(item => {
+                    const optBtn = `
+                        <button onclick="checkFinalDeductionAnswer('${item.id}')" class="btn-touch p-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border-2 border-slate-700 hover:border-amber-400 flex flex-col items-center justify-center text-center transition-all">
+                            <div class="mb-2 flex items-center justify-center h-10">${item.iconSvg}</div>
+                            <span class="font-bold text-slate-100 font-jua text-sm md:text-base">${item.name}</span>
+                        </button>
+                    `;
+                    optionsGrid.innerHTML += optBtn;
+                });
+            } else if (caseInfo.targetType === 'equal') {
+                const pairs = [
+                    [detectiveState.items[0], detectiveState.items[1]],
+                    [detectiveState.items[0], detectiveState.items[2]],
+                    [detectiveState.items[1], detectiveState.items[2]]
+                ];
+
+                pairs.forEach(pair => {
+                    const pairKey = `${pair[0].id}_${pair[1].id}`;
+                    const optBtn = `
+                        <button onclick="checkFinalDeductionAnswer('${pairKey}')" class="btn-touch p-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border-2 border-slate-700 hover:border-amber-400 flex flex-col items-center justify-center text-center transition-all">
+                            <div class="flex gap-2 mb-2 items-center justify-center h-10">
+                                ${pair[0].iconSvg}
+                                ${pair[1].iconSvg}
+                            </div>
+                            <span class="font-bold text-slate-100 font-jua text-xs md:text-sm">${pair[0].name} & ${pair[1].name}</span>
+                        </button>
+                    `;
+                    optionsGrid.innerHTML += optBtn;
+                });
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function checkFinalDeductionAnswer(selectedKey) {
+            playClickSound();
+            const caseInfo = detectiveState.activeCaseInfo;
+            let isCorrect = false;
+
+            if (caseInfo.targetType === 'heaviest') {
+                const heaviest = detectiveState.items.reduce((max, i) => i.weight > max.weight ? i : max, detectiveState.items[0]);
+                isCorrect = (selectedKey === heaviest.id);
+            } else if (caseInfo.targetType === 'lightest') {
+                const lightest = detectiveState.items.reduce((min, i) => i.weight < min.weight ? i : min, detectiveState.items[0]);
+                isCorrect = (selectedKey === lightest.id);
+            } else if (caseInfo.targetType === 'equal') {
+                const equalItems = [];
+                for (let i = 0; i < detectiveState.items.length; i++) {
+                    for (let j = i + 1; j < detectiveState.items.length; j++) {
+                        if (detectiveState.items[i].weight === detectiveState.items[j].weight) {
+                            equalItems.push(detectiveState.items[i].id, detectiveState.items[j].id);
+                        }
+                    }
+                }
+                const selectedArr = selectedKey.split('_');
+                isCorrect = (equalItems.includes(selectedArr[0]) && equalItems.includes(selectedArr[1]));
+            }
+
+            if (isCorrect) {
+                closeModal('deductionModal');
+                openEvidenceModal();
+            } else {
+                detectiveState.attempts++;
+                playHintSound();
+                const hintBox = document.getElementById('deductionHintBox');
+                const hintText = document.getElementById('deductionHintText');
+                hintBox.classList.remove('hidden');
+
+                if (detectiveState.attempts === 1) {
+                    hintText.innerText = "단서 수첩의 첫 번째와 두 번째 결과를 다시 연결해서 생각해 보세요!";
+                } else {
+                    hintText.innerText = "저울의 기울어진 방향에서 더 밑으로 내려간 쪽이 더 무거운 보물입니다!";
+                }
+            }
+        }
+
+        function openEvidenceModal() {
+            playSelectSound();
+            detectiveState.phase = 'explain';
+
+            const modal = document.getElementById('evidenceModal');
+            const listEl = document.getElementById('evidenceOptionsList');
+            listEl.innerHTML = '';
+
+            detectiveState.evidenceSelections = [];
+
+            const availableStatements = [];
+            detectiveState.clues.forEach(c => {
+                let st = "";
+                if (c.result === 'left-heavy') st = `${c.leftItem.name}이(가) ${c.rightItem.name}보다 더 무겁기 때문입니다.`;
+                else if (c.result === 'right-heavy') st = `${c.rightItem.name}이(가) ${c.leftItem.name}보다 더 무겁기 때문입니다.`;
+                else st = `${c.leftItem.name}와(과) ${c.rightItem.name}의 무게가 서로 같기 때문입니다.`;
+                availableStatements.push({ text: st, valid: true });
+            });
+
+            availableStatements.push({ text: "보물의 크기가 가장 크고 반짝이기 때문입니다.", valid: false });
+            availableStatements.push({ text: "보물의 모양이 가장 멋지기 때문입니다.", valid: false });
+
+            shuffleArray(availableStatements);
+
+            availableStatements.forEach((item) => {
+                const btn = `
+                    <button onclick="toggleEvidenceOption(this, ${item.valid})" class="w-full btn-touch p-3 rounded-xl border-2 border-slate-700 bg-slate-800/90 hover:bg-slate-700 text-left flex items-center gap-3 transition-all">
+                        <div class="check-icon w-6 h-6 rounded-full border border-slate-500 flex items-center justify-center text-xs font-bold text-transparent">✓</div>
+                        <span class="text-xs md:text-sm font-bold text-slate-200">${item.text}</span>
+                    </button>
+                `;
+                listEl.innerHTML += btn;
+            });
+
+            document.getElementById('completeCaseBtn').disabled = true;
+            modal.classList.remove('hidden');
+        }
+
+        function toggleEvidenceOption(btnEl, isValid) {
+            playClickSound();
+            const checkIcon = btnEl.querySelector('.check-icon');
+            const isSelected = btnEl.classList.contains('border-emerald-400');
+
+            if (isSelected) {
+                btnEl.className = "w-full btn-touch p-3 rounded-xl border-2 border-slate-700 bg-slate-800/90 hover:bg-slate-700 text-left flex items-center gap-3 transition-all";
+                checkIcon.className = "check-icon w-6 h-6 rounded-full border border-slate-500 flex items-center justify-center text-xs font-bold text-transparent";
+            } else {
+                btnEl.className = "w-full btn-touch p-3 rounded-xl border-2 border-emerald-400 bg-emerald-500/20 text-left flex items-center gap-3 transition-all shadow-md";
+                checkIcon.className = "check-icon w-6 h-6 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-xs font-bold";
+            }
+
+            const allSelected = document.querySelectorAll('#evidenceOptionsList .border-emerald-400');
+            document.getElementById('completeCaseBtn').disabled = (allSelected.length === 0);
+        }
+
+        async function verifyAndSolveCase() {
+            playSuccessSound();
+            closeModal('evidenceModal');
+
+            if (typeof detectiveState.caseId === 'number') {
+                detectiveState.badges[detectiveState.caseId - 1] = true;
+            } else {
+                detectiveState.badges[0] = true;
+            }
+
+            const modal = document.getElementById('solvedModal');
+            const summaryEl = document.getElementById('solvedSummaryText');
+            const caseInfo = detectiveState.activeCaseInfo;
+
+            summaryEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-400 mr-1.5"></i> AI 수사 반장이 수사 보고서를 작성 중입니다...`;
+            modal.classList.remove('hidden');
+
+            renderUI();
+
+            // Generate AI dynamic report using gemini-3-flash-preview
+            const sysPrompt = "You are an enthusiastic elementary science AI detective captain. Write a 2-3 sentence praise and report summary in Korean for 3rd graders explaining their balance scale deduction.";
+            const cluesSummary = detectiveState.clues.map(c => `${c.leftItem.name} ${c.symbol} ${c.rightItem.name}`).join(', ');
+            const userQuery = `사건: ${caseInfo.title}, 수집한 단서: ${cluesSummary}. 사건을 성공적으로 해결한 학생들에게 칭찬과 수평 저울의 무게 비교 원리를 칭찬해 주세요.`;
+
+            try {
+                const aiReport = await callGeminiTextAPI(sysPrompt, userQuery);
+                detectiveState.currentAiReportText = aiReport;
+                summaryEl.innerText = aiReport;
+            } catch (err) {
+                summaryEl.innerText = "수평 탐정단의 완벽한 관찰과 단서 연결로 사건을 완벽하게 해결했습니다!";
+            }
+        }
+
+        async function speakAIReportTTS() {
+            if (!detectiveState.currentAiReportText) return;
+            const btn = event.currentTarget;
+            const orig = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 생성 중...`;
+            btn.disabled = true;
+
+            try {
+                const audioUrl = await callGeminiTTSAPI(detectiveState.currentAiReportText);
+                const audio = new Audio(audioUrl);
+                audio.play();
+                btn.innerHTML = `<i class="fa-solid fa-volume-high animate-pulse"></i> 재생 중`;
+                audio.onended = () => {
+                    btn.innerHTML = orig;
+                    btn.disabled = false;
+                };
+            } catch (e) {
+                btn.innerHTML = orig;
+                btn.disabled = false;
+            }
+        }
+
+        function toggleTeacherModal() {
+            playClickSound();
+            const modal = document.getElementById('teacherModal');
+            modal.classList.toggle('hidden');
+        }
+
+        function toggleTeacherSecretView() {
+            const area = document.getElementById('teacherSecretArea');
+            area.classList.toggle('hidden');
+        }
+
+        function updateTeacherSecretView() {
+            const secretArea = document.getElementById('teacherSecretArea');
+            if (!secretArea) return;
+
+            const wText = detectiveState.items.map(i => `${i.name}:${i.weight}`).join(' | ');
+            document.getElementById('teacherSecretWeights').innerText = `내부 무게값: ${wText}`;
+
+            let bestPair = "아직 조사하지 않은 보물이 포함되도록 선택";
+            if (detectiveState.clues.length === 1) {
+                const comparedIds = [detectiveState.clues[0].leftItem.id, detectiveState.clues[0].rightItem.id];
+                const uncompared = detectiveState.items.find(it => !comparedIds.includes(it.id));
+                if (uncompared) {
+                    bestPair = `추천 조합: [${uncompared.name}] + [${detectiveState.clues[0].leftItem.name}] 또는 [${detectiveState.clues[0].rightItem.name}]`;
+                }
+            }
+            document.getElementById('teacherSecretBestPair').innerText = bestPair;
+        }
+
+        function grantExtraTicket() {
+            playClickSound();
+            detectiveState.comparisonTickets++;
+            renderUI();
+            showToast("보조 비교권 +1회가 지급되었습니다!");
+        }
+
+        function toggleSound() {
+            detectiveState.teacherSettings.soundOn = !detectiveState.teacherSettings.soundOn;
+            document.getElementById('soundToggleBtn').innerText = detectiveState.teacherSettings.soundOn ? "켜짐" : "꺼짐";
+            document.getElementById('soundToggleBtn').className = detectiveState.teacherSettings.soundOn ? "px-3 py-1 bg-emerald-600 text-white font-bold rounded-lg text-xs" : "px-3 py-1 bg-slate-700 text-slate-400 font-bold rounded-lg text-xs";
+        }
+
+        function toggleRandomWeights() {
+            detectiveState.teacherSettings.randomizeWeights = !detectiveState.teacherSettings.randomizeWeights;
+            document.getElementById('randomWeightBtn').innerText = detectiveState.teacherSettings.randomizeWeights ? "켜짐" : "꺼짐";
+            document.getElementById('randomWeightBtn').className = detectiveState.teacherSettings.randomizeWeights ? "px-3 py-1 bg-amber-600 text-white font-bold rounded-lg text-xs" : "px-3 py-1 bg-slate-700 text-slate-400 font-bold rounded-lg text-xs";
+            setupCase(detectiveState.caseId);
+        }
+
+        function changeCase(caseNum) {
+            playClickSound();
+            toggleTeacherModal();
+            setupCase(caseNum);
+        }
+
+        function startCurrentCase() {
+            playClickSound();
+            document.getElementById('caseIntroOverlay').classList.add('hidden');
+            detectiveState.phase = 'select-pair';
+            renderUI();
+        }
+
+        function nextCase() {
+            closeModal('solvedModal');
+            if (typeof detectiveState.caseId === 'number' && detectiveState.caseId < 3) {
+                setupCase(detectiveState.caseId + 1);
+            } else {
+                setupCase('random');
+            }
+        }
+
+        function goToCaseSelection() {
+            closeModal('solvedModal');
+            toggleTeacherModal();
+        }
+
+        function closeModal(modalId) {
+            playClickSound();
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-slate-800 text-amber-300 border border-amber-400 px-6 py-3 rounded-2xl shadow-2xl z-50 text-xs md:text-sm font-bold flex items-center gap-2';
+            toast.innerHTML = `<i class="fa-solid fa-bell text-amber-400"></i> ${msg}`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+    </script>
+</body>
+</html>
