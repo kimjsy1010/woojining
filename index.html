@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>기우뚱 수평 연구소</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Arial, "Malgun Gothic", sans-serif;
+      background: linear-gradient(135deg, #e7f7ff, #fff6d9);
+      color: #24324a;
+    }
+
+    .container {
+      width: min(900px, 92%);
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 12px;
+      font-size: 52px;
+    }
+
+    .subtitle {
+      margin-bottom: 45px;
+      font-size: 24px;
+    }
+
+    .menu {
+      display: grid;
+      gap: 22px;
+    }
+
+    .game-button {
+      display: block;
+      padding: 28px 24px;
+      border: 4px solid #24324a;
+      border-radius: 24px;
+      background: white;
+      color: #24324a;
+      text-decoration: none;
+      font-size: 30px;
+      font-weight: bold;
+      box-shadow: 0 8px 0 #24324a;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .game-button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 11px 0 #24324a;
+    }
+
+    .game-button:active {
+      transform: translateY(6px);
+      box-shadow: 0 2px 0 #24324a;
+    }
+
+    .game-button span {
+      display: block;
+      margin-top: 8px;
+      font-size: 19px;
+      font-weight: normal;
+      color: #5b6475;
+    }
+
+    .game1 {
+      background: #e8f6ff;
+    }
+
+    .game2 {
+      background: #fff4cf;
+    }
+
+    .game3 {
+      background: #f0e9ff;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="container">
+    <h1>⚖️ 기우뚱 수평 연구소</h1>
+
+    <p class="subtitle">
+      활동을 선택하세요.
+    </p>
+
+    <nav class="menu">
+      <a class="game-button game1" href="game1.html">
+        1차시 선생님과 알아보기
+        <span>수평 잡기로 무게를 비교하는 방법을 알아봅니다.</span>
+      </a>
+
+      <a class="game-button game2" href="game2.html">
+        2차시 다 함께 추리하기
+        <span>저울의 결과를 단서로 보물의 비밀을 추리합니다.</span>
+      </a>
+
+      <a class="game-button game3" href="game3.html">
+        3차시 친구와 대결하기
+        <span>두 명이 수평 잡기 문제로 대결합니다.</span>
+      </a>
+    </nav>
+  </main>
+</body>
+</html>

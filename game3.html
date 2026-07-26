@@ -1,0 +1,1807 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>기우뚱 무게왕: 보물 저울 배틀 v1.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;700;900&display=swap');
+
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+
+        .font-jua {
+            font-family: 'Jua', sans-serif;
+        }
+
+        /* 16:9 Responsive Container System */
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #app-viewport {
+            position: relative;
+            width: 100vw;
+            height: 56.25vw; /* 16:9 aspect ratio */
+            max-height: 100vh;
+            max-width: 177.78vh; /* 16:9 aspect ratio */
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            overflow: hidden;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Canvas Overlay for Particle & Flying Gem Animations */
+        #fx-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* Custom Animations */
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(1deg); }
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.6)); }
+            50% { filter: drop-shadow(0 0 22px rgba(251, 191, 36, 0.95)); }
+        }
+
+        @keyframes shakeWrong {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+
+        .shake-animation {
+            animation: shakeWrong 0.4s ease-in-out;
+        }
+
+        .animate-float {
+            animation: floatSlow 3s ease-in-out infinite;
+        }
+
+        .gold-glow {
+            animation: pulseGlow 2s infinite;
+        }
+
+        /* Balance Scale Physics Transitions */
+        .scale-beam {
+            transform-origin: 200px 100px;
+            transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .scale-pan {
+            transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .scale-pan-left {
+            transform-origin: 60px 100px;
+        }
+
+        .scale-pan-right {
+            transform-origin: 340px 100px;
+        }
+
+        /* Smooth UI transitions */
+        .screen {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+
+        .touch-btn {
+            min-height: 52px;
+            transition: transform 0.1s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .touch-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Player Touch Zones Boundary styling */
+        .player-zone {
+            position: relative;
+            box-sizing: border-box;
+            height: 100%;
+        }
+
+        .player-blue-bg {
+            background: linear-gradient(180deg, rgba(30, 58, 138, 0.25) 0%, rgba(15, 23, 42, 0.4) 100%);
+            border-right: 2px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .player-red-bg {
+            background: linear-gradient(180deg, rgba(153, 27, 27, 0.25) 0%, rgba(15, 23, 42, 0.4) 100%);
+            border-left: 2px solid rgba(239, 68, 68, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Viewport (16:9 Aspect Ratio) -->
+    <div id="app-viewport">
+        <canvas id="fx-canvas"></canvas>
+
+        <!-- Dynamic Screen Container -->
+        <div id="screen-container" class="w-full h-full relative overflow-hidden flex flex-col">
+
+            <!-- ================= 1. START / TITLE SCREEN ================= -->
+            <div id="screen-start" class="screen absolute inset-0 z-20 flex flex-col items-center justify-between p-6 bg-slate-900 bg-opacity-95">
+                <!-- Header Title -->
+                <div class="text-center mt-4 animate-float">
+                    <span class="bg-amber-500/20 text-amber-300 text-sm md:text-base font-bold px-4 py-1.5 rounded-full border border-amber-500/40 tracking-wider">
+                        스마트 칠판 대표 과학 탐구 게임
+                    </span>
+                    <h1 class="text-4xl md:text-6xl font-jua text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 mt-2 filter drop-shadow-lg">
+                        기우뚱 무게왕
+                    </h1>
+                    <p class="text-lg md:text-2xl font-jua text-amber-200/90 mt-1">
+                        《보물 저울 배틀》
+                    </p>
+                </div>
+
+                <!-- Graphic Center Illustration -->
+                <div class="relative w-full max-w-xl h-48 flex items-center justify-center my-2">
+                    <svg viewBox="0 0 400 180" class="w-full h-full filter drop-shadow-xl">
+                        <!-- Scale Base & Stand -->
+                        <polygon points="200,160 170,175 230,175" fill="#475569" />
+                        <rect x="195" y="70" width="10" height="95" rx="3" fill="#64748b" />
+                        <circle cx="200" cy="70" r="12" fill="#fbbf24" />
+                        <!-- Beam -->
+                        <rect x="50" y="66" width="300" height="8" rx="4" fill="#cbd5e1" />
+                        <!-- Strings -->
+                        <line x1="60" y1="70" x2="40" y2="120" stroke="#94a3b8" stroke-width="2" />
+                        <line x1="60" y1="70" x2="80" y2="120" stroke="#94a3b8" stroke-width="2" />
+                        <line x1="340" y1="70" x2="320" y2="120" stroke="#94a3b8" stroke-width="2" />
+                        <line x1="340" y1="70" x2="360" y2="120" stroke="#94a3b8" stroke-width="2" />
+                        <!-- Dishes -->
+                        <path d="M 30,120 Q 60,135 90,120 Z" fill="#38bdf8" />
+                        <path d="M 310,120 Q 340,135 370,120 Z" fill="#f87171" />
+                        <!-- Gems glowing above -->
+                        <polygon points="200,20 210,35 200,50 190,35" fill="#fbbf24" class="gold-glow" />
+                        <polygon points="60,85 68,97 60,109 52,97" fill="#60a5fa" />
+                        <polygon points="340,85 348,97 340,109 332,97" fill="#f87171" />
+                    </svg>
+
+                    <!-- Player Avatars -->
+                    <div class="absolute left-6 bottom-2 flex flex-col items-center">
+                        <div class="w-16 h-16 rounded-full bg-blue-600 border-4 border-blue-300 flex items-center justify-center text-2xl text-white shadow-lg">
+                            <i class="fa-solid fa-circle-dot"></i>
+                        </div>
+                        <span class="text-xs font-bold text-blue-300 mt-1 font-jua">파랑 탐정</span>
+                    </div>
+                    <div class="absolute right-6 bottom-2 flex flex-col items-center">
+                        <div class="w-16 h-16 rounded-full bg-red-600 border-4 border-red-300 flex items-center justify-center text-2xl text-white shadow-lg">
+                            <i class="fa-solid fa-star"></i>
+                        </div>
+                        <span class="text-xs font-bold text-red-300 mt-1 font-jua">빨강 탐정</span>
+                    </div>
+                </div>
+
+                <!-- Navigation Action Buttons -->
+                <div class="flex flex-wrap items-center justify-center gap-4 w-full max-w-2xl mb-4">
+                    <button onclick="startGameMode('battle')" class="touch-btn flex-1 min-w-[200px] py-4 px-6 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-jua text-2xl rounded-2xl shadow-lg border-2 border-yellow-200 flex items-center justify-center gap-3">
+                        <i class="fa-solid fa-trophy text-amber-950"></i>
+                        2인 대결 시작
+                    </button>
+                    <button onclick="startGameMode('practice')" class="touch-btn py-4 px-6 bg-slate-800 hover:bg-slate-700 text-sky-300 font-jua text-xl rounded-2xl border border-sky-500/30 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        연습 경기
+                    </button>
+                    <button onclick="openSettingsModal()" class="touch-btn py-4 px-5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-jua text-xl rounded-2xl border border-slate-600 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-gear"></i>
+                        설정
+                    </button>
+                    <button onclick="openHowToModal()" class="touch-btn py-4 px-5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-jua text-xl rounded-2xl border border-slate-600 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-circle-question"></i>
+                        게임 방법
+                    </button>
+                </div>
+            </div>
+
+            <!-- ================= 2. SETTINGS MODAL ================= -->
+            <div id="modal-settings" class="hidden absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+                <div class="bg-slate-800 border-2 border-amber-500/40 rounded-3xl p-6 w-full max-w-2xl shadow-2xl text-slate-100 flex flex-col gap-5">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                        <h2 class="text-2xl font-jua text-amber-400 flex items-center gap-2">
+                            <i class="fa-solid fa-sliders"></i> 교사용 경기 설정
+                        </h2>
+                        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white text-2xl px-2">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm md:text-base">
+                        <!-- Target Gems -->
+                        <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-700">
+                            <label class="block font-bold text-amber-300 mb-2 font-jua">승리 보석 수</label>
+                            <div class="flex gap-2">
+                                <button onclick="setSetting('targetGems', 2)" id="btn-target-2" class="setting-opt-btn flex-1 py-2 rounded-xl border border-slate-600 font-bold">2개 (빠름)</button>
+                                <button onclick="setSetting('targetGems', 3)" id="btn-target-3" class="setting-opt-btn flex-1 py-2 rounded-xl border border-amber-500 bg-amber-500 text-slate-950 font-bold">3개 (기본)</button>
+                                <button onclick="setSetting('targetGems', 5)" id="btn-target-5" class="setting-opt-btn flex-1 py-2 rounded-xl border border-slate-600 font-bold">5개 (긴경기)</button>
+                            </div>
+                        </div>
+
+                        <!-- Difficulty -->
+                        <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-700">
+                            <label class="block font-bold text-amber-300 mb-2 font-jua">문제 난이도</label>
+                            <div class="flex gap-2">
+                                <button onclick="setSetting('difficulty', 'easy')" id="btn-diff-easy" class="setting-opt-btn flex-1 py-2 rounded-xl border border-slate-600 font-bold">쉬움</button>
+                                <button onclick="setSetting('difficulty', 'normal')" id="btn-diff-normal" class="setting-opt-btn flex-1 py-2 rounded-xl border border-amber-500 bg-amber-500 text-slate-950 font-bold">보통</button>
+                                <button onclick="setSetting('difficulty', 'hard')" id="btn-diff-hard" class="setting-opt-btn flex-1 py-2 rounded-xl border border-slate-600 font-bold">어려움</button>
+                            </div>
+                        </div>
+
+                        <!-- Play Mode -->
+                        <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-700">
+                            <label class="block font-bold text-amber-300 mb-2 font-jua">진행 방식 (스마트 칠판 멀티터치)</label>
+                            <div class="flex gap-2">
+                                <button onclick="setSetting('playMode', 'turn')" id="btn-mode-turn" class="setting-opt-btn flex-1 py-2 rounded-xl border border-amber-500 bg-amber-500 text-slate-950 font-bold text-xs md:text-sm">번갈아 진행 (기본)</button>
+                                <button onclick="setSetting('playMode', 'simultaneous')" id="btn-mode-simultaneous" class="setting-opt-btn flex-1 py-2 rounded-xl border border-slate-600 font-bold text-xs md:text-sm">동시 진행 (멀티터치)</button>
+                            </div>
+                        </div>
+
+                        <!-- Sound Option -->
+                        <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-700">
+                            <label class="block font-bold text-amber-300 mb-2 font-jua">소리 설정</label>
+                            <div class="flex gap-2">
+                                <button onclick="toggleAudioSetting(true)" id="btn-sound-on" class="setting-opt-btn flex-1 py-2 rounded-xl border border-amber-500 bg-amber-500 text-slate-950 font-bold">효과음 켜기</button>
+                                <button onclick="toggleAudioSetting(false)" id="btn-sound-off" class="setting-opt-btn flex-1 py-2 rounded-xl border border-slate-600 font-bold">끄기</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gemini AI Integration Option -->
+                    <div class="bg-purple-950/40 p-4 rounded-2xl border border-purple-500/40">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <label class="font-bold text-purple-300 font-jua text-sm md:text-base flex items-center gap-2">
+                                    <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i> Gemini AI 스마트 탐구 가이드
+                                </label>
+                                <p class="text-xs text-purple-200/80 mt-0.5 font-jua">
+                                    Gemini 3.1 Flash를 활용해 학생별 맞춤 AI 힌트 및 경기 후 과학 탐구 토의 리포트를 제공합니다.
+                                </p>
+                            </div>
+                            <button onclick="toggleAIMode()" id="btn-ai-mode" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-jua text-xs md:text-sm rounded-xl border border-purple-300 shadow">
+                                AI 기능 활성화됨
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Question Types Checklist -->
+                    <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-700">
+                        <label class="block font-bold text-amber-300 mb-2 font-jua">출제 문제 유형 (선택 가능)</label>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs md:text-sm">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" checked onchange="toggleQType('type1')" class="w-4 h-4 accent-amber-500"> 1. 무거운 쪽 찾기
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" checked onchange="toggleQType('type2')" class="w-4 h-4 accent-amber-500"> 2. 수평 저울 찾기
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" checked onchange="toggleQType('type3')" class="w-4 h-4 accent-amber-500"> 3. 같은 자리에 놓기
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" checked onchange="toggleQType('type4')" class="w-4 h-4 accent-amber-500"> 4. 수평 완성하기
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" checked onchange="toggleQType('type5')" class="w-4 h-4 accent-amber-500"> 5. 비교 기호 (>,=,<)
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" checked onchange="toggleQType('type6')" class="w-4 h-4 accent-amber-500"> 6. 고장난 저울 고치기
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end mt-2">
+                        <button onclick="closeSettingsModal()" class="touch-btn py-3 px-8 bg-amber-500 hover:bg-amber-400 text-slate-950 font-jua text-lg rounded-xl font-bold">
+                            설정 완료
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= 3. HOW TO PLAY MODAL ================= -->
+            <div id="modal-howto" class="hidden absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+                <div class="bg-slate-800 border-2 border-sky-500/40 rounded-3xl p-6 w-full max-w-2xl shadow-2xl text-slate-100 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                        <h2 class="text-2xl font-jua text-sky-400 flex items-center gap-2">
+                            <i class="fa-solid fa-graduation-cap"></i> 게임 방법 & 과학 원리
+                        </h2>
+                        <button onclick="closeHowToModal()" class="text-slate-400 hover:text-white text-2xl px-2">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <div class="space-y-3 text-sm md:text-base leading-relaxed">
+                        <div class="p-3 bg-sky-950/40 rounded-2xl border border-sky-800/50">
+                            <h3 class="font-bold text-sky-300 font-jua text-lg mb-1">🎮 승리 방법</h3>
+                            <p class="text-slate-200">
+                                1. 각자의 문제판에서 수평 잡기 문제를 해결합니다.<br>
+                                2. 정답을 맞히면 <strong>황금 보석 1개</strong>를 획득하여 중앙 승부 저울에 떨어집니다.<br>
+                                3. 보석 <strong>3개를 먼저 모아</strong> 중앙 저울을 자기 쪽으로 기울어지게 만든 학생이 승리합니다!
+                            </p>
+                        </div>
+
+                        <div class="p-3 bg-amber-950/40 rounded-2xl border border-amber-800/50">
+                            <h3 class="font-bold text-amber-300 font-jua text-lg mb-1">⚖️ [4과01-02] 핵심 탐구 개념</h3>
+                            <p class="text-slate-200">
+                                • <strong>같은 거리 규칙:</strong> 두 물체를 받침점에서 <u>같은 거리</u>에 놓았을 때만 무게를 정확히 비교할 수 있습니다.<br>
+                                • <strong>기울어진 저울:</strong> 아래로 내려간 쪽의 물체가 더 무겁습니다.<br>
+                                • <strong>수평인 저울:</strong> 어느 쪽으로도 기울어지지 않았다면 두 물체의 무게가 같습니다.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                        <button onclick="closeHowToModal()" class="touch-btn py-2.5 px-6 bg-sky-500 hover:bg-sky-400 text-slate-950 font-jua text-base rounded-xl font-bold">
+                            확인했습니다!
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= 4. COUNTDOWN OVERLAY ================= -->
+            <div id="screen-countdown" class="hidden absolute inset-0 z-40 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center">
+                <div id="countdown-text" class="text-8xl md:text-9xl font-jua text-amber-400 gold-glow transform scale-100 transition-all duration-300">
+                    3
+                </div>
+                <div class="text-2xl md:text-3xl font-jua text-slate-200 mt-6 tracking-wide">
+                    수평 배틀 준비!
+                </div>
+            </div>
+
+            <!-- ================= 5. MAIN GAMEPLAY VIEW (16:9 SPLIT BOARD) ================= -->
+            <div id="screen-gameplay" class="hidden w-full h-full flex flex-col justify-between p-2 md:p-3 relative select-none">
+                
+                <!-- Top Status Header Bar -->
+                <div class="h-12 md:h-14 bg-slate-900/90 rounded-2xl border border-slate-700 px-4 flex items-center justify-between shadow-md z-10">
+                    <!-- Blue Player Header Status -->
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
+                            <i class="fa-solid fa-circle-dot"></i>
+                        </div>
+                        <div class="flex flex-col">
+                            <span id="label-blue-name" class="font-jua text-blue-300 text-sm md:text-base leading-none">파랑 선수의 방</span>
+                            <div id="blue-gem-slots" class="flex gap-1 mt-1 text-xs text-amber-400">
+                                <!-- Gem icons dynamically populated -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Center Game Info -->
+                    <div class="flex items-center gap-3">
+                        <span id="badge-round-info" class="bg-amber-500/20 text-amber-300 text-xs md:text-sm font-bold px-3 py-1 rounded-full border border-amber-500/30 font-jua">
+                            목표 보석: 3개
+                        </span>
+                        <button onclick="toggleAudio()" id="btn-audio-toggle" class="p-2 text-slate-400 hover:text-amber-400 text-lg">
+                            <i class="fa-solid fa-volume-high"></i>
+                        </button>
+                        <button onclick="confirmExitGame()" class="p-2 text-slate-400 hover:text-red-400 text-lg">
+                            <i class="fa-solid fa-house"></i>
+                        </button>
+                    </div>
+
+                    <!-- Red Player Header Status -->
+                    <div class="flex items-center gap-3 flex-row-reverse text-right">
+                        <div class="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center text-white font-bold text-sm">
+                            <i class="fa-solid fa-star"></i>
+                        </div>
+                        <div class="flex flex-col items-end">
+                            <span id="label-red-name" class="font-jua text-red-300 text-sm md:text-base leading-none">빨강 선수의 방</span>
+                            <div id="red-gem-slots" class="flex gap-1 mt-1 text-xs text-amber-400">
+                                <!-- Gem icons dynamically populated -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Interactive Split Board (3 Columns) -->
+                <div class="flex-1 my-2 grid grid-cols-10 gap-2 relative overflow-hidden">
+
+                    <!-- LEFT: Blue Player Problem Area (35% -> col-span-3 or 3.5 cols) -->
+                    <div id="blue-player-zone" class="col-span-3.5 col-span-4 md:col-span-3 player-zone player-blue-bg rounded-2xl border border-blue-500/30 p-2 md:p-3 flex flex-col justify-between relative overflow-hidden">
+                        <!-- Turn Highlight overlay if turn-based -->
+                        <div id="blue-turn-overlay" class="hidden absolute inset-0 bg-slate-950/60 z-20 flex items-center justify-center rounded-2xl">
+                            <span class="bg-slate-800 text-blue-300 border border-blue-500 font-jua text-base md:text-lg px-4 py-2 rounded-xl shadow-lg">
+                                빨강 선수 차례입니다
+                            </span>
+                        </div>
+
+                        <!-- Header & Prompt -->
+                        <div class="bg-slate-900/80 p-2.5 rounded-xl border border-blue-500/40 shadow">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs text-blue-400 font-bold tracking-wider font-jua">파랑 미션</span>
+                                <div class="flex items-center gap-1">
+                                    <span id="blue-qtype-tag" class="text-[10px] bg-blue-900/60 text-blue-200 px-2 py-0.5 rounded-md border border-blue-700">무거운 쪽 찾기</span>
+                                    <button id="blue-ai-hint-btn" onclick="getAIHint('blue')" class="text-[10px] bg-purple-900/80 hover:bg-purple-800 text-purple-200 px-2 py-0.5 rounded-md border border-purple-500 font-jua flex items-center gap-1 transition">
+                                        <i class="fa-solid fa-sparkles text-amber-300"></i> AI 힌트
+                                    </button>
+                                </div>
+                            </div>
+                            <h3 id="blue-q-prompt" class="font-jua text-sm md:text-base text-slate-100 leading-tight">
+                                어느 물체가 더 무거울까요?
+                            </h3>
+                        </div>
+
+                        <!-- Interactive Question Container -->
+                        <div id="blue-question-body" class="flex-1 my-2 bg-slate-950/40 rounded-xl border border-slate-800 p-2 flex flex-col items-center justify-center relative overflow-hidden">
+                            <!-- Injected dynamically via JS -->
+                        </div>
+
+                        <!-- Feedback Message Strip -->
+                        <div id="blue-feedback" class="h-8 bg-slate-900/90 rounded-lg flex items-center justify-center text-xs md:text-sm font-bold text-slate-300 font-jua border border-slate-800">
+                            문제를 보고 정답을 눌러주세요!
+                        </div>
+                    </div>
+
+                    <!-- CENTER: Central Battle Scale ("승부 저울") (30% -> col-span-3 or 4 cols) -->
+                    <div class="col-span-3 md:col-span-4 bg-slate-900/80 rounded-2xl border border-amber-500/30 p-2 flex flex-col items-center justify-between relative shadow-2xl">
+                        <!-- Scale Title Indicator -->
+                        <div class="text-center mt-1">
+                            <span class="text-xs md:text-sm font-jua text-amber-300 bg-amber-950/60 border border-amber-500/40 px-3 py-1 rounded-full shadow">
+                                ⚖️ 중앙 승부 저울
+                            </span>
+                            <p id="scale-status-text" class="text-xs font-jua text-amber-200/80 mt-1">
+                                양쪽 무게가 같습니다 (0 : 0)
+                            </p>
+                        </div>
+
+                        <!-- Giant Central Balance Scale SVG Visualizer -->
+                        <div class="w-full h-44 md:h-56 relative flex items-center justify-center my-auto">
+                            <svg id="battle-scale-svg" viewBox="0 0 400 240" class="w-full h-full">
+                                <!-- Stand & Base -->
+                                <polygon points="200,210 160,230 240,230" fill="#334155" stroke="#475569" stroke-width="2" />
+                                <rect x="194" y="90" width="12" height="125" rx="4" fill="#475569" />
+                                <circle cx="200" cy="90" r="14" fill="#fbbf24" stroke="#d97706" stroke-width="2" />
+
+                                <!-- Main Tilting Beam Group -->
+                                <g id="scale-beam-group" class="scale-beam">
+                                    <!-- Crossbar Beam -->
+                                    <rect x="50" y="85" width="300" height="10" rx="5" fill="#cbd5e1" stroke="#64748b" stroke-width="1.5" />
+                                    <!-- Center Pivot Pin -->
+                                    <circle cx="200" cy="90" r="6" fill="#1e293b" />
+
+                                    <!-- LEFT PAN (BLUE PLAYER) -->
+                                    <g id="scale-left-pan-group" class="scale-pan scale-pan-left">
+                                        <!-- Strings -->
+                                        <line x1="60" y1="90" x2="35" y2="155" stroke="#94a3b8" stroke-width="2" />
+                                        <line x1="60" y1="90" x2="85" y2="155" stroke="#94a3b8" stroke-width="2" />
+                                        <!-- Dish Plate -->
+                                        <path d="M 25,155 Q 60,175 95,155 Z" fill="#2563eb" stroke="#60a5fa" stroke-width="2" />
+                                        <!-- Blue Gem Stacking Area -->
+                                        <g id="scale-blue-gems-container">
+                                            <!-- Gems dynamically added -->
+                                        </g>
+                                    </g>
+
+                                    <!-- RIGHT PAN (RED PLAYER) -->
+                                    <g id="scale-right-pan-group" class="scale-pan scale-pan-right">
+                                        <!-- Strings -->
+                                        <line x1="340" y1="90" x2="315" y2="155" stroke="#94a3b8" stroke-width="2" />
+                                        <line x1="340" y1="90" x2="365" y2="155" stroke="#94a3b8" stroke-width="2" />
+                                        <!-- Dish Plate -->
+                                        <path d="M 305,155 Q 340,175 375,155 Z" fill="#dc2626" stroke="#f87171" stroke-width="2" />
+                                        <!-- Red Gem Stacking Area -->
+                                        <g id="scale-red-gems-container">
+                                            <!-- Gems dynamically added -->
+                                        </g>
+                                    </g>
+                                </g>
+                            </svg>
+                        </div>
+
+                        <!-- Bottom Live Gem Counter Banner -->
+                        <div class="w-full bg-slate-950/80 rounded-xl p-2 border border-slate-800 flex justify-around items-center text-xs md:text-sm font-jua">
+                            <div class="flex items-center gap-1.5 text-blue-400">
+                                <i class="fa-solid fa-gem text-amber-400"></i>
+                                파랑: <span id="score-blue-num" class="text-base text-white">0</span> 개
+                            </div>
+                            <div class="text-slate-500">VS</div>
+                            <div class="flex items-center gap-1.5 text-red-400">
+                                빨강: <span id="score-red-num" class="text-base text-white">0</span> 개
+                                <i class="fa-solid fa-gem text-amber-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT: Red Player Problem Area (35% -> col-span-3 or 3.5 cols) -->
+                    <div id="red-player-zone" class="col-span-3.5 col-span-4 md:col-span-3 player-zone player-red-bg rounded-2xl border border-red-500/30 p-2 md:p-3 flex flex-col justify-between relative overflow-hidden">
+                        <!-- Turn Highlight overlay if turn-based -->
+                        <div id="red-turn-overlay" class="hidden absolute inset-0 bg-slate-950/60 z-20 flex items-center justify-center rounded-2xl">
+                            <span class="bg-slate-800 text-red-300 border border-red-500 font-jua text-base md:text-lg px-4 py-2 rounded-xl shadow-lg">
+                                파랑 선수 차례입니다
+                            </span>
+                        </div>
+
+                        <!-- Header & Prompt -->
+                        <div class="bg-slate-900/80 p-2.5 rounded-xl border border-red-500/40 shadow">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs text-red-400 font-bold tracking-wider font-jua">빨강 미션</span>
+                                <div class="flex items-center gap-1">
+                                    <span id="red-qtype-tag" class="text-[10px] bg-red-900/60 text-red-200 px-2 py-0.5 rounded-md border border-red-700">무거운 쪽 찾기</span>
+                                    <button id="red-ai-hint-btn" onclick="getAIHint('red')" class="text-[10px] bg-purple-900/80 hover:bg-purple-800 text-purple-200 px-2 py-0.5 rounded-md border border-purple-500 font-jua flex items-center gap-1 transition">
+                                        <i class="fa-solid fa-sparkles text-amber-300"></i> AI 힌트
+                                    </button>
+                                </div>
+                            </div>
+                            <h3 id="red-q-prompt" class="font-jua text-sm md:text-base text-slate-100 leading-tight">
+                                어느 물체가 더 무거울까요?
+                            </h3>
+                        </div>
+
+                        <!-- Interactive Question Container -->
+                        <div id="red-question-body" class="flex-1 my-2 bg-slate-950/40 rounded-xl border border-slate-800 p-2 flex flex-col items-center justify-center relative overflow-hidden">
+                            <!-- Injected dynamically via JS -->
+                        </div>
+
+                        <!-- Feedback Message Strip -->
+                        <div id="red-feedback" class="h-8 bg-slate-900/90 rounded-lg flex items-center justify-center text-xs md:text-sm font-bold text-slate-300 font-jua border border-slate-800">
+                            문제를 보고 정답을 눌러주세요!
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ================= 6. VICTORY / GAME OVER SCREEN ================= -->
+            <div id="screen-victory" class="hidden absolute inset-0 z-30 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-between p-6 text-center">
+                <div class="mt-4 animate-bounce">
+                    <span id="win-badge" class="bg-amber-500 text-slate-950 text-base font-bold font-jua px-5 py-1.5 rounded-full shadow-lg border-2 border-yellow-200">
+                        🏆 경기 종료!
+                    </span>
+                    <h2 id="win-title" class="text-5xl md:text-6xl font-jua text-amber-300 mt-3 gold-glow">
+                        파랑 선수 승리!
+                    </h2>
+                </div>
+
+                <!-- Graphic Winner Illustration -->
+                <div class="relative w-full max-w-lg h-44 flex items-center justify-center">
+                    <svg viewBox="0 0 300 140" class="w-full h-full">
+                        <polygon points="150,110 120,130 180,130" fill="#475569" />
+                        <rect x="146" y="50" width="8" height="65" rx="2" fill="#64748b" />
+                        <!-- Beam Tilted towards winner -->
+                        <g id="win-scale-beam" transform="rotate(-8, 150, 50)">
+                            <rect x="30" y="47" width="240" height="6" rx="3" fill="#cbd5e1" />
+                            <circle cx="150" cy="50" r="8" fill="#fbbf24" />
+                            <!-- Left Plate -->
+                            <line x1="40" y1="50" x2="25" y2="90" stroke="#94a3b8" stroke-width="2" />
+                            <line x1="40" y1="50" x2="55" y2="90" stroke="#94a3b8" stroke-width="2" />
+                            <path d="M 15,90 Q 40,105 65,90 Z" fill="#2563eb" />
+                            <!-- Right Plate -->
+                            <line x1="260" y1="50" x2="245" y2="90" stroke="#94a3b8" stroke-width="2" />
+                            <line x1="260" y1="50" x2="275" y2="90" stroke="#94a3b8" stroke-width="2" />
+                            <path d="M 235,90 Q 260,105 285,90 Z" fill="#dc2626" />
+                        </g>
+                    </svg>
+                </div>
+
+                <!-- Educational Summary Explanation Box -->
+                <div class="max-w-xl bg-slate-900/90 border border-amber-500/40 rounded-2xl p-4 shadow-xl text-slate-200">
+                    <p id="win-explanation" class="text-base md:text-lg font-jua text-amber-200 leading-relaxed">
+                        파랑 선수의 보석이 더 많아 저울이 파랑 쪽으로 더 크게 기울었습니다!
+                    </p>
+                    <div id="win-score-detail" class="text-xs md:text-sm text-slate-400 mt-2 font-bold flex justify-center gap-4">
+                        <span>파랑 보석: ◆ ◆ ◆</span>
+                        <span>빨강 보석: ◆ ◆ ◇</span>
+                    </div>
+
+                    <div id="ai-report-content" class="mt-3">
+                        <!-- AI Report injected here -->
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap items-center justify-center gap-3 mb-4">
+                    <button id="btn-generate-ai-report" onclick="generateAIReport()" class="touch-btn py-3 px-5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-jua text-lg rounded-2xl shadow-lg border border-purple-300 flex items-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i>
+                        AI 탐구 리포트 생성
+                    </button>
+                    <button onclick="openReviewQuiz()" class="touch-btn py-3 px-5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-jua text-lg rounded-2xl shadow-lg flex items-center gap-2">
+                        <i class="fa-solid fa-clipboard-question"></i>
+                        경기 후 확인 문제
+                    </button>
+                    <button onclick="restartBattle()" class="touch-btn py-3 px-5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-jua text-lg rounded-2xl shadow-lg font-bold flex items-center gap-2">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        다시 경기하기
+                    </button>
+                </div>
+            </div>
+
+            <!-- ================= 7. POST-GAME REVIEW QUIZ MODAL ================= -->
+            <div id="modal-review" class="hidden absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+                <div class="bg-slate-800 border-2 border-sky-500/50 rounded-3xl p-6 w-full max-w-xl shadow-2xl text-slate-100 flex flex-col gap-4">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                        <h2 class="text-2xl font-jua text-sky-300 flex items-center gap-2">
+                            <i class="fa-solid fa-brain"></i> 학급 같이 풀기: 경기 후 확인 문제
+                        </h2>
+                        <button onclick="closeReviewQuiz()" class="text-slate-400 hover:text-white text-2xl px-2">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <div class="p-4 bg-slate-900 rounded-2xl border border-slate-700">
+                        <p class="text-base md:text-lg font-jua text-amber-200 mb-3">
+                            ❓ 파랑 선수의 보석은 3개이고, 빨강 선수의 보석은 2개입니다.<br>
+                            두 보석이 받침점에서 같은 거리에 쌓여 있다면, 중앙 승부 저울은 어느 쪽으로 기울어질까요?
+                        </p>
+
+                        <div class="grid grid-cols-3 gap-3 my-4">
+                            <button onclick="answerReviewQuiz('blue')" class="touch-btn py-3 bg-blue-900/80 hover:bg-blue-800 border border-blue-500 rounded-xl font-jua text-lg text-blue-200">
+                                파랑 쪽
+                            </button>
+                            <button onclick="answerReviewQuiz('equal')" class="touch-btn py-3 bg-slate-700 hover:bg-slate-600 border border-slate-500 rounded-xl font-jua text-lg text-slate-200">
+                                수평
+                            </button>
+                            <button onclick="answerReviewQuiz('red')" class="touch-btn py-3 bg-red-900/80 hover:bg-red-800 border border-red-500 rounded-xl font-jua text-lg text-red-200">
+                                빨강 쪽
+                            </button>
+                        </div>
+
+                        <div id="review-feedback" class="hidden p-3 bg-slate-950 rounded-xl text-center font-jua text-sm md:text-base border border-slate-700">
+                            <!-- Feedback shown after click -->
+                        </div>
+                    </div>
+
+                    <!-- Core Science Principle Summary -->
+                    <div class="p-3 bg-amber-950/40 rounded-xl border border-amber-800/40 text-xs md:text-sm text-amber-200 leading-relaxed font-jua">
+                        💡 <strong>핵심 과학 정리:</strong> 받침점에서 같은 거리에 물체를 놓았을 때, 개수가 많아 무게가 더 무거운 쪽으로 저울이 기울어집니다!
+                    </div>
+
+                    <div class="flex justify-end pt-1">
+                        <button onclick="closeReviewQuiz()" class="touch-btn py-2.5 px-6 bg-slate-700 hover:bg-slate-600 font-jua text-base rounded-xl">
+                            닫기
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Game State Structure
+        const battleState = {
+            phase: 'start', // 'start', 'countdown', 'playing', 'victory'
+            playMode: 'turn', // 'simultaneous' or 'turn'
+            targetGems: 3,
+            difficulty: 'normal',
+            soundEnabled: true,
+            aiEnabled: true, // Gemini API Features active
+            activeTurn: 'blue', // 'blue' or 'red' in turn-based mode
+            isPractice: false,
+
+            enabledQTypes: ['type1', 'type2', 'type3', 'type4', 'type5', 'type6'],
+
+            blue: {
+                name: '파랑 선수',
+                gems: 0,
+                currentQ: null,
+                locked: false,
+                attempts: 0
+            },
+            red: {
+                name: '빨강 선수',
+                gems: 0,
+                currentQ: null,
+                locked: false,
+                attempts: 0
+            },
+            winner: null
+        };
+
+        // Gemini API Helper Call
+        async function callGeminiAPI(userQuery, systemInstruction = "", jsonSchema = null, retries = 3) {
+            const apiKey = ""; // Canvas runtime populates the key automatically
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }]
+            };
+
+            if (systemInstruction) {
+                payload.systemInstruction = {
+                    parts: [{ text: systemInstruction }]
+                };
+            }
+
+            if (jsonSchema) {
+                payload.generationConfig = {
+                    responseMimeType: "application/json",
+                    responseSchema: jsonSchema
+                };
+            }
+
+            let delay = 1000;
+            for (let attempt = 0; attempt < retries; attempt++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    const candidate = result.candidates?.[0];
+                    if (candidate && candidate.content?.parts?.[0]?.text) {
+                        return candidate.content.parts[0].text;
+                    }
+                    throw new Error("Invalid response format from Gemini API");
+                } catch (err) {
+                    if (attempt === retries - 1) throw err;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        // Gemini AI Real-time Hint Feature
+        async function getAIHint(player) {
+            if (!battleState.aiEnabled) {
+                const feedbackEl = document.getElementById(`${player}-feedback`);
+                feedbackEl.textContent = "💡 설정에서 Gemini AI 가이드를 켜주세요!";
+                return;
+            }
+
+            const playerData = battleState[player];
+            const q = playerData.currentQ;
+            if (!q) return;
+
+            const hintBtn = document.getElementById(`${player}-ai-hint-btn`);
+            const originalHTML = hintBtn.innerHTML;
+            hintBtn.disabled = true;
+            hintBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 생각 중';
+
+            const systemPrompt = "당신은 초등학교 3학년 과학 '수평 잡기와 무게 비교' [4과01-02] 단원의 친절한 탐정 AI 튜터입니다. 정답을 직접 알려주지 말고, 받침점, 같은 거리, 기울어진 방향 등 수평 잡기의 원리를 활용하여 학생 스스로 생각할 수 있게 아주 쉽고 다정한 한 문장 힌트를 주세요.";
+            const userPrompt = `문제 유형: ${q.typeName}, 질문: "${q.prompt}". 이 문제를 풀고 있는 ${player === 'blue' ? '파랑' : '빨강'} 학생에게 알려줄 힌트 1문장을 작성하세요.`;
+
+            try {
+                const text = await callGeminiAPI(userPrompt, systemPrompt);
+                const feedbackEl = document.getElementById(`${player}-feedback`);
+                feedbackEl.textContent = `🤖 AI 힌트: ${text.trim()}`;
+                feedbackEl.className = "h-auto py-2 px-3 bg-purple-900/90 rounded-lg text-xs font-bold text-purple-200 font-jua border border-purple-400 shadow animate-pulse";
+                audio.playPop();
+            } catch (e) {
+                console.error("Gemini API hint error:", e);
+                const feedbackEl = document.getElementById(`${player}-feedback`);
+                feedbackEl.textContent = "🤖 AI 힌트: 받침점에서 같은 거리에 놓고 기울어진 방향을 유심히 살펴보세요!";
+                feedbackEl.className = "h-auto py-2 px-3 bg-purple-900/90 rounded-lg text-xs font-bold text-purple-200 font-jua border border-purple-400";
+            } finally {
+                hintBtn.disabled = false;
+                hintBtn.innerHTML = originalHTML;
+            }
+        }
+
+        // Gemini AI Match Inquiry & Classroom Discussion Report
+        async function generateAIReport() {
+            const reportContainer = document.getElementById('ai-report-content');
+            const reportBtn = document.getElementById('btn-generate-ai-report');
+
+            reportBtn.disabled = true;
+            reportBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> AI 보고서 작성 중...';
+            reportContainer.innerHTML = '<div class="p-3 text-center text-purple-300 font-jua text-xs md:text-sm bg-purple-950/40 rounded-xl border border-purple-500/30"><i class="fa-solid fa-brain fa-spin text-xl mb-1 text-amber-300"></i><br>Gemini 3.1 Flash가 이번 경기의 수평 과학 탐구 결과를 분석 중입니다...</div>';
+
+            const winnerName = battleState.winner === 'blue' ? '파랑' : '빨강';
+            const systemPrompt = "당신은 초등 3학년 과학 교사용 평가 전문 Gemini AI입니다. 두 학생의 수평 잡기 게임 결과를 바탕으로 3학년 수준의 과학적 원리 관찰 피드백(2문장)과 학급 전체 토의용 질문 2가지를 친절한 한국어로 작성하세요.";
+            const userPrompt = `경기 결과 - 승자: ${winnerName} 선수. 파랑 보석: ${battleState.blue.gems}개, 빨강 보석: ${battleState.red.gems}개, 난이도: ${battleState.difficulty}. 보석 수와 중앙 승부 저울의 기울어짐 원리를 연결하는 평가 요약 및 선생님이 반 아이들에게 물어볼 질문 2개를 작성해 주세요.`;
+
+            try {
+                const resultText = await callGeminiAPI(userPrompt, systemPrompt);
+                reportContainer.innerHTML = `
+                    <div class="bg-purple-950/80 border border-purple-500/50 p-3 rounded-xl text-xs md:text-sm text-purple-100 font-jua leading-relaxed text-left space-y-1 shadow-lg">
+                        <div class="flex items-center gap-2 text-amber-300 font-bold border-b border-purple-700/60 pb-1 text-xs md:text-sm">
+                            <i class="fa-solid fa-microscope text-amber-400"></i> Gemini AI 탐구 리포트 & 학급 질문
+                        </div>
+                        <div class="whitespace-pre-line text-slate-200 mt-1">${resultText.trim()}</div>
+                    </div>
+                `;
+                audio.playCorrect();
+            } catch (e) {
+                console.error("Gemini API report error:", e);
+                reportContainer.innerHTML = `
+                    <div class="bg-purple-950/60 p-3 rounded-xl text-xs text-amber-200 font-jua border border-purple-500/30 text-left">
+                        💡 <strong>핵심 탐구 정리:</strong> 받침점에서 같은 거리에 놓였을 때, 보석 개수가 더 많아 무게가 더 무거운 쪽으로 중앙 승부 저울이 기울어집니다!
+                    </div>
+                `;
+            } finally {
+                reportBtn.disabled = false;
+                reportBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i> AI 탐구 리포트 다시 생성';
+            }
+        }
+
+        function toggleAIMode() {
+            battleState.aiEnabled = !battleState.aiEnabled;
+            const btn = document.getElementById('btn-ai-mode');
+            if (battleState.aiEnabled) {
+                btn.className = "px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-jua text-xs md:text-sm rounded-xl border border-purple-300 shadow";
+                btn.textContent = "AI 기능 활성화됨";
+            } else {
+                btn.className = "px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 font-jua text-xs md:text-sm rounded-xl border border-slate-500";
+                btn.textContent = "AI 기능 비활성화됨";
+            }
+        }
+
+        // Web Audio API Synthesizer (No external audio files needed!)
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playPop() {
+                if (!battleState.soundEnabled) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            }
+
+            playCorrect() {
+                if (!battleState.soundEnabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                    gain.gain.setValueAtTime(0.2, now + idx * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.25);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.08);
+                    osc.stop(now + idx * 0.08 + 0.25);
+                });
+            }
+
+            playWrong() {
+                if (!battleState.soundEnabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.linearRampToValueAtTime(140, now + 0.25);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+
+            playTilt() {
+                if (!battleState.soundEnabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.exponentialRampToValueAtTime(320, now + 0.3);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+
+            playWin() {
+                if (!battleState.soundEnabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50, 880, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+                    gain.gain.setValueAtTime(0.25, now + idx * 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.4);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.12);
+                    osc.stop(now + idx * 0.12 + 0.4);
+                });
+            }
+        }
+
+        const audio = new SoundFX();
+
+        // Graphic Icons Library for Objects
+        const OBJECT_ICONS = {
+            crown: { name: '왕관', weight: 3, svg: '<circle cx="25" cy="25" r="18" fill="#fbbf24"/><path d="M15 30 L18 18 L25 24 L32 18 L35 30 Z" fill="#b45309"/>' },
+            crystal: { name: '수정구슬', weight: 1, svg: '<circle cx="25" cy="25" r="16" fill="#38bdf8"/><circle cx="20" cy="20" r="5" fill="#ffffff" opacity="0.6"/>' },
+            key: { name: '황금열쇠', weight: 2, svg: '<circle cx="20" cy="20" r="10" stroke="#f59e0b" stroke-width="4" fill="none"/><rect x="26" y="18" width="16" height="4" fill="#f59e0b"/>' },
+            chest: { name: '보물상자', weight: 4, svg: '<rect x="12" y="16" width="26" height="20" rx="3" fill="#854d0e"/><rect x="12" y="14" width="26" height="6" fill="#ca8a04"/>' },
+            apple: { name: '사과', weight: 1, svg: '<circle cx="25" cy="26" r="15" fill="#ef4444"/><path d="M25 11 Q28 6 30 10" stroke="#15803d" stroke-width="3" fill="none"/>' },
+            wood: { name: '나무토막', weight: 1, svg: '<rect x="12" y="15" width="26" height="20" rx="2" fill="#b45309" stroke="#78350f" stroke-width="2"/>' },
+            gold: { name: '금괴', weight: 2, svg: '<polygon points="12,32 16,18 34,18 38,32" fill="#eab308" stroke="#ca8a04" stroke-width="1.5"/>' }
+        };
+
+        // Question Generator Factory (Creates Fair Pairs for Blue and Red)
+        function generateQuestionPair(type) {
+            if (type === 'type1') {
+                // Choose Heavier
+                return {
+                    blue: {
+                        type: 'type1',
+                        typeName: '무거운 쪽 찾기',
+                        prompt: '저울이 기울어진 방향을 보고 더 무거운 물체를 누르세요!',
+                        leftObj: OBJECT_ICONS.crown,
+                        rightObj: OBJECT_ICONS.crystal,
+                        tilt: 'left', // left is heavier
+                        correct: 'left'
+                    },
+                    red: {
+                        type: 'type1',
+                        typeName: '무거운 쪽 찾기',
+                        prompt: '저울이 기울어진 방향을 보고 더 무거운 물체를 누르세요!',
+                        leftObj: OBJECT_ICONS.key,
+                        rightObj: OBJECT_ICONS.chest,
+                        tilt: 'right', // right is heavier
+                        correct: 'right'
+                    }
+                };
+            } else if (type === 'type2') {
+                // Find Balanced Scale
+                return {
+                    blue: {
+                        type: 'type2',
+                        typeName: '수평 저울 찾기',
+                        prompt: '양쪽 물체의 무게가 같아 수평을 이룬 저울을 찾아 누르세요!',
+                        scales: [
+                            { tilt: 'left', isBalanced: false },
+                            { tilt: 'equal', isBalanced: true },
+                            { tilt: 'right', isBalanced: false }
+                        ]
+                    },
+                    red: {
+                        type: 'type2',
+                        typeName: '수평 저울 찾기',
+                        prompt: '양쪽 물체의 무게가 같아 수평을 이룬 저울을 찾아 누르세요!',
+                        scales: [
+                            { tilt: 'right', isBalanced: false },
+                            { tilt: 'left', isBalanced: false },
+                            { tilt: 'equal', isBalanced: true }
+                        ]
+                    }
+                };
+            } else if (type === 'type3') {
+                // Match Distance
+                const slot = Math.floor(Math.random() * 3) + 1; // 1, 2, or 3
+                return {
+                    blue: {
+                        type: 'type3',
+                        typeName: '같은 자리에 놓기',
+                        prompt: `무게를 정확히 비교하려면 오른쪽도 [${slot}번] 자리에 놓아야 해요!`,
+                        targetSlot: slot,
+                        leftObj: OBJECT_ICONS.apple,
+                        rightObj: OBJECT_ICONS.apple
+                    },
+                    red: {
+                        type: 'type3',
+                        typeName: '같은 자리에 놓기',
+                        prompt: `무게를 정확히 비교하려면 오른쪽도 [${slot}번] 자리에 놓아야 해요!`,
+                        targetSlot: slot,
+                        leftObj: OBJECT_ICONS.wood,
+                        rightObj: OBJECT_ICONS.wood
+                    }
+                };
+            } else if (type === 'type4') {
+                // Complete Balance
+                return {
+                    blue: {
+                        type: 'type4',
+                        typeName: '수평 완성하기',
+                        prompt: '양쪽 무게가 같아지도록 나무토막 1개를 알맞은 접시에 추가하세요!',
+                        leftCount: 2,
+                        rightCount: 1,
+                        correctSide: 'right'
+                    },
+                    red: {
+                        type: 'type4',
+                        typeName: '수평 완성하기',
+                        prompt: '양쪽 무게가 같아지도록 나무토막 1개를 알맞은 접시에 추가하세요!',
+                        leftCount: 1,
+                        rightCount: 2,
+                        correctSide: 'left'
+                    }
+                };
+            } else if (type === 'type5') {
+                // Comparison Symbol
+                return {
+                    blue: {
+                        type: 'type5',
+                        typeName: '비교 기호 알맞게 고르기',
+                        prompt: '저울의 기울기를 보고 알맞은 비교 기호(>, =, <)를 누르세요!',
+                        leftObj: OBJECT_ICONS.chest,
+                        rightObj: OBJECT_ICONS.crystal,
+                        tilt: 'left', // Left > Right
+                        correctSymbol: '>'
+                    },
+                    red: {
+                        type: 'type5',
+                        typeName: '비교 기호 알맞게 고르기',
+                        prompt: '저울의 기울기를 보고 알맞은 비교 기호(>, =, <)를 누르세요!',
+                        leftObj: OBJECT_ICONS.crystal,
+                        rightObj: OBJECT_ICONS.crown,
+                        tilt: 'right', // Left < Right
+                        correctSymbol: '<'
+                    }
+                };
+            } else {
+                // Type 6: Fix Broken Scale
+                return {
+                    blue: {
+                        type: 'type6',
+                        typeName: '고장난 저울 고치기',
+                        prompt: '물체 거리가 달라 저울이 잠겼습니다! 오른쪽 물체를 [2번]으로 옮기세요.',
+                        currentLeftSlot: 2,
+                        currentRightSlot: 3,
+                        correctSlot: 2
+                    },
+                    red: {
+                        type: 'type6',
+                        typeName: '고장난 저울 고치기',
+                        prompt: '물체 거리가 달라 저울이 잠겼습니다! 오른쪽 물체를 [2번]으로 옮기세요.',
+                        currentLeftSlot: 2,
+                        currentRightSlot: 1,
+                        correctSlot: 2
+                    }
+                };
+            }
+        }
+
+        function renderQuestionUI(player, qData) {
+            const container = document.getElementById(`${player}-question-body`);
+            const qtypeTag = document.getElementById(`${player}-qtype-tag`);
+            const promptEl = document.getElementById(`${player}-q-prompt`);
+
+            qtypeTag.textContent = qData.typeName;
+            promptEl.textContent = qData.prompt;
+            container.innerHTML = '';
+
+            if (qData.type === 'type1') {
+                // Type 1 HTML: Clear 16deg tilt with objects inside pans
+                const tiltAngle = qData.tilt === 'left' ? -16 : 16;
+                container.innerHTML = `
+                    <div class="w-full flex-1 flex flex-col items-center justify-center p-1">
+                        <svg viewBox="0 0 280 150" class="w-full h-36 filter drop-shadow-md">
+                            <!-- Stand -->
+                            <polygon points="140,120 120,140 160,140" fill="#475569" />
+                            <rect x="137" y="55" width="6" height="70" fill="#64748b" />
+                            <circle cx="140" cy="55" r="7" fill="#fbbf24" />
+                            
+                            <!-- Tilted Beam Group -->
+                            <g transform="rotate(${tiltAngle}, 140, 55)" class="transition-transform duration-500">
+                                <!-- Crossbar -->
+                                <rect x="30" y="52" width="220" height="6" fill="#cbd5e1" rx="3" />
+                                
+                                <!-- Left Side Pan & Object -->
+                                <line x1="40" y1="55" x2="25" y2="95" stroke="#94a3b8" stroke-width="2"/>
+                                <line x1="40" y1="55" x2="55" y2="95" stroke="#94a3b8" stroke-width="2"/>
+                                <path d="M 15,95 Q 40,110 65,95 Z" fill="#2563eb" stroke="#60a5fa" stroke-width="1.5"/>
+                                <g transform="translate(15, 48)">
+                                    <svg width="50" height="50" viewBox="0 0 50 50">${qData.leftObj.svg}</svg>
+                                </g>
+
+                                <!-- Right Side Pan & Object -->
+                                <line x1="240" y1="55" x2="225" y2="95" stroke="#94a3b8" stroke-width="2"/>
+                                <line x1="240" y1="55" x2="255" y2="95" stroke="#94a3b8" stroke-width="2"/>
+                                <path d="M 215,95 Q 240,110 265,95 Z" fill="#dc2626" stroke="#f87171" stroke-width="1.5"/>
+                                <g transform="translate(215, 48)">
+                                    <svg width="50" height="50" viewBox="0 0 50 50">${qData.rightObj.svg}</svg>
+                                </g>
+                            </g>
+                        </svg>
+                        
+                        <div class="flex gap-2 mt-1 w-full px-1">
+                            <button onclick="handleAnswer('${player}', 'left')" class="touch-btn flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-jua text-xs md:text-sm text-white border border-blue-300 flex items-center justify-center gap-1 shadow-lg">
+                                <span class="w-6 h-6 inline-block">${qData.leftObj.svg}</span>
+                                <span>왼쪽 (${qData.leftObj.name})</span>
+                            </button>
+                            <button onclick="handleAnswer('${player}', 'right')" class="touch-btn flex-1 py-2 bg-red-600 hover:bg-red-500 rounded-xl font-jua text-xs md:text-sm text-white border border-red-300 flex items-center justify-center gap-1 shadow-lg">
+                                <span>오른쪽 (${qData.rightObj.name})</span>
+                                <span class="w-6 h-6 inline-block">${qData.rightObj.svg}</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else if (qData.type === 'type2') {
+                // Type 2 HTML
+                let scalesHtml = qData.scales.map((s, idx) => {
+                    const rot = s.tilt === 'left' ? -16 : (s.tilt === 'right' ? 16 : 0);
+                    return `
+                        <button onclick="handleAnswer('${player}', ${idx})" class="touch-btn flex-1 bg-slate-900/90 border-2 border-slate-700 hover:border-amber-400 p-2 rounded-xl flex flex-col items-center justify-center shadow-lg transition">
+                            <span class="text-xs text-amber-300 font-bold mb-1 font-jua">${idx + 1}번 저울</span>
+                            <svg viewBox="0 0 120 70" class="w-full h-16">
+                                <polygon points="60,55 50,65 70,65" fill="#475569" />
+                                <rect x="58" y="25" width="4" height="32" fill="#64748b" />
+                                <g transform="rotate(${rot}, 60, 25)">
+                                    <rect x="15" y="23" width="90" height="4" fill="#cbd5e1" rx="2" />
+                                    <path d="M 15,42 Q 30,50 45,42 Z" fill="#38bdf8"/>
+                                    <path d="M 75,42 Q 90,50 105,42 Z" fill="#f87171"/>
+                                    <circle cx="30" cy="35" r="6" fill="#fbbf24"/>
+                                    <circle cx="90" cy="35" r="6" fill="#fbbf24"/>
+                                </g>
+                            </svg>
+                        </button>
+                    `;
+                }).join('');
+
+                container.innerHTML = `
+                    <div class="w-full flex-1 flex items-center justify-center gap-2 px-1">
+                        ${scalesHtml}
+                    </div>
+                `;
+            } else if (qData.type === 'type3') {
+                // Type 3 HTML
+                container.innerHTML = `
+                    <div class="w-full flex-1 flex flex-col items-center justify-center">
+                        <svg viewBox="0 0 280 110" class="w-full h-24">
+                            <polygon points="140,85 120,100 160,100" fill="#475569" />
+                            <rect x="137" y="45" width="6" height="42" fill="#64748b" />
+                            <rect x="30" y="42" width="220" height="6" fill="#cbd5e1" rx="3" />
+                            
+                            <!-- Left Slots: 3, 2, 1 -->
+                            <line x1="60" y1="38" x2="60" y2="48" stroke="#f59e0b" stroke-width="2"/>
+                            <text x="60" y="32" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="bold">3번</text>
+                            <line x1="85" y1="38" x2="85" y2="48" stroke="#f59e0b" stroke-width="2"/>
+                            <text x="85" y="32" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="bold">2번</text>
+                            <line x1="110" y1="38" x2="110" y2="48" stroke="#f59e0b" stroke-width="2"/>
+                            <text x="110" y="32" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="bold">1번</text>
+
+                            <!-- Left Object on target slot -->
+                            <g transform="translate(${110 - (qData.targetSlot - 1) * 25 - 15}, 12)">
+                                <svg width="30" height="30" viewBox="0 0 50 50">${qData.leftObj.svg}</svg>
+                            </g>
+
+                            <!-- Right Slots: 1, 2, 3 -->
+                            <line x1="170" y1="38" x2="170" y2="48" stroke="#38bdf8" stroke-width="2"/>
+                            <text x="170" y="32" text-anchor="middle" fill="#38bdf8" font-size="10" font-weight="bold">1번</text>
+                            <line x1="195" y1="38" x2="195" y2="48" stroke="#38bdf8" stroke-width="2"/>
+                            <text x="195" y="32" text-anchor="middle" fill="#38bdf8" font-size="10" font-weight="bold">2번</text>
+                            <line x1="220" y1="38" x2="220" y2="48" stroke="#38bdf8" stroke-width="2"/>
+                            <text x="220" y="32" text-anchor="middle" fill="#38bdf8" font-size="10" font-weight="bold">3번</text>
+                        </svg>
+
+                        <div class="text-xs text-amber-300 font-jua mb-1.5">
+                            왼쪽 물체는 <span class="text-amber-400 font-bold underline">[${qData.targetSlot}번]</span> 위치에 있습니다.
+                        </div>
+                        <div class="flex justify-around w-full max-w-xs bg-slate-900/80 p-1.5 rounded-xl border border-slate-700">
+                            ${[1, 2, 3].map(slot => `
+                                <button onclick="handleAnswer('${player}', ${slot})" class="touch-btn flex-1 mx-1 py-2 bg-slate-800 hover:bg-amber-500/30 border border-slate-600 rounded-xl flex flex-col items-center justify-center text-amber-300 font-jua shadow">
+                                    <span class="text-xs font-bold text-slate-200">${slot}번 칸</span>
+                                    <i class="fa-solid fa-location-dot text-sm mt-0.5 text-amber-400"></i>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else if (qData.type === 'type4') {
+                // Type 4 HTML
+                const rot = qData.leftCount > qData.rightCount ? -12 : 12;
+                container.innerHTML = `
+                    <div class="w-full flex-1 flex flex-col items-center justify-center">
+                        <svg viewBox="0 0 260 120" class="w-full h-28">
+                            <polygon points="130,100 110,115 150,115" fill="#475569" />
+                            <rect x="127" y="50" width="6" height="52" fill="#64748b" />
+                            <g transform="rotate(${rot}, 130, 50)" class="transition-transform duration-500">
+                                <rect x="30" y="47" width="200" height="6" fill="#cbd5e1" rx="3" />
+                                
+                                <!-- Left Pan -->
+                                <line x1="40" y1="50" x2="25" y2="85" stroke="#94a3b8" stroke-width="2"/>
+                                <line x1="40" y1="50" x2="55" y2="85" stroke="#94a3b8" stroke-width="2"/>
+                                <path d="M 15,85 Q 40,98 65,85 Z" fill="#2563eb" stroke="#60a5fa"/>
+                                ${Array.from({length: qData.leftCount}).map((_, i) => `
+                                    <rect x="32" y="${68 - i * 14}" width="16" height="12" rx="2" fill="#b45309" stroke="#fbbf24" stroke-width="1"/>
+                                `).join('')}
+
+                                <!-- Right Pan -->
+                                <line x1="220" y1="50" x2="205" y2="85" stroke="#94a3b8" stroke-width="2"/>
+                                <line x1="220" y1="50" x2="235" y2="85" stroke="#94a3b8" stroke-width="2"/>
+                                <path d="M 195,85 Q 220,98 245,85 Z" fill="#dc2626" stroke="#f87171"/>
+                                ${Array.from({length: qData.rightCount}).map((_, i) => `
+                                    <rect x="212" y="${68 - i * 14}" width="16" height="12" rx="2" fill="#b45309" stroke="#fbbf24" stroke-width="1"/>
+                                `).join('')}
+                            </g>
+                        </svg>
+
+                        <div class="text-xs text-slate-200 font-jua mb-2">
+                            왼쪽: <span class="text-blue-300 font-bold">${qData.leftCount}개</span> | 오른쪽: <span class="text-red-300 font-bold">${qData.rightCount}개</span>
+                        </div>
+                        <div class="flex gap-2 w-full px-2">
+                            <button onclick="handleAnswer('${player}', 'left')" class="touch-btn flex-1 py-2.5 bg-blue-900/80 hover:bg-blue-700 border border-blue-400 rounded-xl font-jua text-xs text-blue-100 shadow">
+                                왼쪽에 1개 추가
+                            </button>
+                            <button onclick="handleAnswer('${player}', 'right')" class="touch-btn flex-1 py-2.5 bg-red-900/80 hover:bg-red-700 border border-red-400 rounded-xl font-jua text-xs text-red-100 shadow">
+                                오른쪽에 1개 추가
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else if (qData.type === 'type5') {
+                // Type 5 HTML - Added scale SVG graphic!
+                const tiltAngle = qData.tilt === 'left' ? -16 : 16;
+                container.innerHTML = `
+                    <div class="w-full flex-1 flex flex-col items-center justify-center p-1">
+                        <svg viewBox="0 0 280 130" class="w-full h-32 filter drop-shadow-md">
+                            <polygon points="140,110 120,125 160,125" fill="#475569" />
+                            <rect x="137" y="50" width="6" height="62" fill="#64748b" />
+                            <circle cx="140" cy="50" r="7" fill="#fbbf24" />
+                            
+                            <g transform="rotate(${tiltAngle}, 140, 50)" class="transition-transform duration-500">
+                                <rect x="30" y="47" width="220" height="6" fill="#cbd5e1" rx="3" />
+                                
+                                <!-- Left Pan -->
+                                <line x1="40" y1="50" x2="25" y2="88" stroke="#94a3b8" stroke-width="2"/>
+                                <line x1="40" y1="50" x2="55" y2="88" stroke="#94a3b8" stroke-width="2"/>
+                                <path d="M 15,88 Q 40,102 65,88 Z" fill="#2563eb" stroke="#60a5fa" stroke-width="1.5"/>
+                                <g transform="translate(15, 42)">
+                                    <svg width="50" height="50" viewBox="0 0 50 50">${qData.leftObj.svg}</svg>
+                                </g>
+
+                                <!-- Right Pan -->
+                                <line x1="240" y1="50" x2="225" y2="88" stroke="#94a3b8" stroke-width="2"/>
+                                <line x1="240" y1="50" x2="255" y2="88" stroke="#94a3b8" stroke-width="2"/>
+                                <path d="M 215,88 Q 240,102 265,88 Z" fill="#dc2626" stroke="#f87171" stroke-width="1.5"/>
+                                <g transform="translate(215, 42)">
+                                    <svg width="50" height="50" viewBox="0 0 50 50">${qData.rightObj.svg}</svg>
+                                </g>
+                            </g>
+                        </svg>
+
+                        <div class="flex items-center justify-center gap-2 my-1 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-slate-700">
+                            <span class="font-jua text-blue-300 text-xs md:text-sm font-bold">${qData.leftObj.name}</span>
+                            <span class="w-8 h-8 bg-amber-500/20 border-2 border-amber-400 rounded-lg flex items-center justify-center font-jua text-xl text-amber-300 font-bold">?</span>
+                            <span class="font-jua text-red-300 text-xs md:text-sm font-bold">${qData.rightObj.name}</span>
+                        </div>
+
+                        <div class="flex gap-3 mt-1">
+                            ${['>', '=', '<'].map(sym => `
+                                <button onclick="handleAnswer('${player}', '${sym}')" class="touch-btn w-12 h-10 bg-amber-500 hover:bg-amber-400 text-slate-950 font-jua text-2xl font-black rounded-xl shadow-md border-2 border-yellow-200 active:scale-95 transition">
+                                    ${sym}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else if (qData.type === 'type6') {
+                // Type 6 HTML
+                container.innerHTML = `
+                    <div class="w-full flex-1 flex flex-col items-center justify-center">
+                        <svg viewBox="0 0 280 110" class="w-full h-24">
+                            <polygon points="140,85 120,100 160,100" fill="#475569" />
+                            <rect x="137" y="45" width="6" height="42" fill="#64748b" />
+                            
+                            <g transform="rotate(12, 140, 45)">
+                                <rect x="30" y="42" width="220" height="6" fill="#f87171" rx="3" />
+                                <text x="140" y="32" text-anchor="middle" fill="#ef4444" font-size="12" font-weight="bold">🔒 거리 조건 오류로 잠김</text>
+                                
+                                <text x="170" y="58" text-anchor="middle" fill="#38bdf8" font-size="10" font-weight="bold">1번</text>
+                                <text x="195" y="58" text-anchor="middle" fill="#38bdf8" font-size="10" font-weight="bold">2번</text>
+                                <text x="220" y="58" text-anchor="middle" fill="#38bdf8" font-size="10" font-weight="bold">3번</text>
+                            </g>
+                        </svg>
+
+                        <div class="text-xs text-amber-300 font-jua mb-1">
+                            오른쪽 물체 위치를 선택하세요:
+                        </div>
+                        <div class="flex gap-2 my-1">
+                            ${[1, 2, 3].map(s => `
+                                <button onclick="handleAnswer('${player}', ${s})" class="touch-btn w-16 h-10 bg-slate-800 hover:bg-sky-500/30 border border-slate-600 rounded-xl text-sky-300 font-jua font-bold text-sm shadow">
+                                    ${s}번 위치
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function handleAnswer(player, choice) {
+            audio.playPop();
+            const playerData = battleState[player];
+
+            if (playerData.locked) return;
+
+            // Turn check in turn-based mode
+            if (battleState.playMode === 'turn' && battleState.activeTurn !== player) {
+                return;
+            }
+
+            const q = playerData.currentQ;
+            let isCorrect = false;
+
+            // Evaluate answer
+            if (q.type === 'type1') {
+                isCorrect = (choice === q.correct);
+            } else if (q.type === 'type2') {
+                isCorrect = q.scales[choice] && q.scales[choice].isBalanced;
+            } else if (q.type === 'type3') {
+                isCorrect = (choice === q.targetSlot);
+            } else if (q.type === 'type4') {
+                isCorrect = (choice === q.correctSide);
+            } else if (q.type === 'type5') {
+                isCorrect = (choice === q.correctSymbol);
+            } else if (q.type === 'type6') {
+                isCorrect = (choice === q.correctSlot);
+            }
+
+            const feedbackEl = document.getElementById(`${player}-feedback`);
+
+            if (isCorrect) {
+                audio.playCorrect();
+                playerData.locked = true;
+                feedbackEl.textContent = "✨ 정답입니다! 황금 보석 획득!";
+                feedbackEl.className = "h-8 bg-emerald-900/90 rounded-lg flex items-center justify-center text-xs md:text-sm font-bold text-emerald-200 font-jua border border-emerald-500 shadow";
+
+                // Award Gem Animation
+                triggerFlyingGem(player, () => {
+                    awardGem(player);
+                });
+
+            } else {
+                audio.playWrong();
+                playerData.attempts++;
+                const zone = document.getElementById(`${player}-player-zone`);
+                zone.classList.add('shake-animation');
+                setTimeout(() => zone.classList.remove('shake-animation'), 400);
+
+                feedbackEl.textContent = "💡 다시 살펴보세요! 저울의 수평 조건에 주의하세요.";
+                feedbackEl.className = "h-8 bg-rose-900/90 rounded-lg flex items-center justify-center text-xs md:text-sm font-bold text-rose-200 font-jua border border-rose-500";
+            }
+        }
+
+        // Flying Gem Bezier Particle Animation on Canvas
+        function triggerFlyingGem(player, callback) {
+            const canvas = document.getElementById('fx-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+
+            const startZone = document.getElementById(`${player}-question-body`).getBoundingClientRect();
+            const viewportRect = document.getElementById('app-viewport').getBoundingClientRect();
+
+            const startX = startZone.left - viewportRect.left + startZone.width / 2;
+            const startY = startZone.top - viewportRect.top + startZone.height / 2;
+
+            // Target central dish pan
+            const scaleSvg = document.getElementById('battle-scale-svg').getBoundingClientRect();
+            const targetX = player === 'blue' 
+                ? (scaleSvg.left - viewportRect.left + scaleSvg.width * 0.2) 
+                : (scaleSvg.left - viewportRect.left + scaleSvg.width * 0.8);
+            const targetY = scaleSvg.top - viewportRect.top + scaleSvg.height * 0.6;
+
+            let progress = 0;
+            const duration = 45; // frames (~0.75s)
+
+            function animateGem() {
+                progress++;
+                const t = progress / duration;
+
+                // Bezier Curve Arc
+                const controlY = Math.min(startY, targetY) - 80;
+                const currentX = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * ((startX + targetX) / 2) + t * t * targetX;
+                const currentY = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * controlY + t * t * targetY;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Draw Glowing Gold Gem Particle
+                ctx.save();
+                ctx.shadowColor = '#fbbf24';
+                ctx.shadowBlur = 15;
+                ctx.fillStyle = '#fbbf24';
+                ctx.beginPath();
+                ctx.arc(currentX, currentY, 14, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(currentX - 4, currentY - 4, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                if (progress < duration) {
+                    requestAnimationFrame(animateGem);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    if (callback) callback();
+                }
+            }
+
+            requestAnimationFrame(animateGem);
+        }
+
+        function awardGem(player) {
+            battleState[player].gems++;
+            audio.playTilt();
+
+            // Update score display numbers
+            document.getElementById(`score-${player}-num`).textContent = battleState[player].gems;
+
+            // Update visual scale gem icons
+            renderScaleGems();
+
+            // Update scale beam angle physics
+            updateScaleTilt();
+
+            // Check victory condition
+            if (battleState[player].gems >= battleState.targetGems) {
+                setTimeout(() => {
+                    finishGame(player);
+                }, 800);
+                return;
+            }
+
+            // Next Question Setup
+            setTimeout(() => {
+                battleState[player].locked = false;
+                document.getElementById(`${player}-feedback`).textContent = "문제를 보고 정답을 눌러주세요!";
+                document.getElementById(`${player}-feedback`).className = "h-8 bg-slate-900/90 rounded-lg flex items-center justify-center text-xs md:text-sm font-bold text-slate-300 font-jua border border-slate-800";
+
+                // Switch turn if turn-based mode
+                if (battleState.playMode === 'turn') {
+                    battleState.activeTurn = (player === 'blue') ? 'red' : 'blue';
+                    updateTurnOverlays();
+                }
+
+                loadNextQuestion(player);
+            }, 600);
+        }
+
+        // Render Gem SVG shapes on Central Scale Plates
+        function renderScaleGems() {
+            const blueContainer = document.getElementById('scale-blue-gems-container');
+            const redContainer = document.getElementById('scale-red-gems-container');
+
+            blueContainer.innerHTML = '';
+            for (let i = 0; i < battleState.blue.gems; i++) {
+                const py = 150 - (i * 12);
+                blueContainer.innerHTML += `
+                    <polygon points="60,${py} 66,${py-10} 60,${py-20} 54,${py-10}" fill="#fbbf24" stroke="#d97706" stroke-width="1" class="gold-glow" />
+                `;
+            }
+
+            redContainer.innerHTML = '';
+            for (let i = 0; i < battleState.red.gems; i++) {
+                const py = 150 - (i * 12);
+                redContainer.innerHTML += `
+                    <polygon points="340,${py} 346,${py-10} 340,${py-20} 334,${py-10}" fill="#fbbf24" stroke="#d97706" stroke-width="1" class="gold-glow" />
+                `;
+            }
+
+            // Top Header Gem Icons Update
+            ['blue', 'red'].forEach(p => {
+                const slotsEl = document.getElementById(`${p}-gem-slots`);
+                slotsEl.innerHTML = '';
+                for (let i = 0; i < battleState.targetGems; i++) {
+                    if (i < battleState[p].gems) {
+                        slotsEl.innerHTML += '<i class="fa-solid fa-gem text-amber-400 text-sm"></i>';
+                    } else {
+                        slotsEl.innerHTML += '<i class="fa-regular fa-gem text-slate-600 text-sm"></i>';
+                    }
+                }
+            });
+        }
+
+        // Central Balance Beam Tilt Calculation (Physics angle adjustment)
+        function updateScaleTilt() {
+            const blueCount = battleState.blue.gems;
+            const redCount = battleState.red.gems;
+            const diff = redCount - blueCount; // Positive = Red heavier (right down), Negative = Blue heavier (left down)
+
+            let angle = 0;
+            if (diff !== 0) {
+                angle = Math.sign(diff) * Math.min(10, 4 + Math.abs(diff) * 3);
+            }
+
+            const beamGroup = document.getElementById('scale-beam-group');
+            beamGroup.style.transform = `rotate(${angle}deg)`;
+
+            const statusEl = document.getElementById('scale-status-text');
+            if (diff === 0) {
+                statusEl.textContent = `양쪽 무게가 같습니다 (수평 상태)`;
+                statusEl.className = "text-xs font-jua text-emerald-300 mt-1";
+            } else if (diff < 0) {
+                statusEl.textContent = `파랑 쪽으로 기울었습니다 (${blueCount} : ${redCount})`;
+                statusEl.className = "text-xs font-jua text-blue-300 mt-1";
+            } else {
+                statusEl.textContent = `빨강 쪽으로 기울었습니다 (${blueCount} : ${redCount})`;
+                statusEl.className = "text-xs font-jua text-red-300 mt-1";
+            }
+        }
+
+        function updateTurnOverlays() {
+            if (battleState.playMode === 'simultaneous') {
+                document.getElementById('blue-turn-overlay').classList.add('hidden');
+                document.getElementById('red-turn-overlay').classList.add('hidden');
+                return;
+            }
+
+            if (battleState.activeTurn === 'blue') {
+                document.getElementById('blue-turn-overlay').classList.add('hidden');
+                document.getElementById('red-turn-overlay').classList.remove('hidden');
+            } else {
+                document.getElementById('blue-turn-overlay').classList.remove('hidden');
+                document.getElementById('red-turn-overlay').classList.add('hidden');
+            }
+        }
+
+        function loadNextQuestion(player) {
+            const types = battleState.enabledQTypes;
+            const randomType = types[Math.floor(Math.random() * types.length)];
+            const pair = generateQuestionPair(randomType);
+
+            battleState.blue.currentQ = pair.blue;
+            battleState.red.currentQ = pair.red;
+
+            renderQuestionUI('blue', battleState.blue.currentQ);
+            renderQuestionUI('red', battleState.red.currentQ);
+        }
+
+        function startGameMode(mode) {
+            audio.init();
+            battleState.isPractice = (mode === 'practice');
+            battleState.blue.gems = 0;
+            battleState.red.gems = 0;
+            battleState.blue.locked = false;
+            battleState.red.locked = false;
+            battleState.activeTurn = 'blue';
+
+            // Show Countdown
+            document.getElementById('screen-start').classList.add('hidden');
+            document.getElementById('screen-victory').classList.add('hidden');
+            document.getElementById('screen-countdown').classList.remove('hidden');
+
+            let count = 3;
+            const countEl = document.getElementById('countdown-text');
+            countEl.textContent = count;
+
+            const timer = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countEl.textContent = count;
+                    audio.playPop();
+                } else {
+                    clearInterval(timer);
+                    document.getElementById('screen-countdown').classList.add('hidden');
+                    document.getElementById('screen-gameplay').classList.remove('hidden');
+
+                    renderScaleGems();
+                    updateScaleTilt();
+                    updateTurnOverlays();
+                    loadNextQuestion();
+                }
+            }, 800);
+        }
+
+        function finishGame(winner) {
+            audio.playWin();
+            battleState.winner = winner;
+            document.getElementById('screen-gameplay').classList.add('hidden');
+            document.getElementById('screen-victory').classList.remove('hidden');
+
+            const winTitle = document.getElementById('win-title');
+            const winExp = document.getElementById('win-explanation');
+            const winDetail = document.getElementById('win-score-detail');
+            const winScale = document.getElementById('win-scale-beam');
+
+            if (winner === 'blue') {
+                winTitle.textContent = "파랑 선수 승리!";
+                winTitle.className = "text-5xl md:text-6xl font-jua text-blue-400 mt-3 gold-glow";
+                winExp.textContent = "파랑 선수의 보석이 더 많아 저울이 파랑 쪽으로 기울었습니다!";
+                winScale.setAttribute('transform', 'rotate(-10, 150, 50)');
+            } else {
+                winTitle.textContent = "빨강 선수 승리!";
+                winTitle.className = "text-5xl md:text-6xl font-jua text-red-400 mt-3 gold-glow";
+                winExp.textContent = "빨강 선수의 보석이 더 많아 저울이 빨강 쪽으로 기울었습니다!";
+                winScale.setAttribute('transform', 'rotate(10, 150, 50)');
+            }
+
+            winDetail.innerHTML = `
+                <span>파랑 보석: ${battleState.blue.gems}개</span>
+                <span>VS</span>
+                <span>빨강 보석: ${battleState.red.gems}개</span>
+            `;
+
+            if (battleState.aiEnabled) {
+                generateAIReport();
+            } else {
+                document.getElementById('ai-report-content').innerHTML = '';
+            }
+        }
+
+        function restartBattle() {
+            startGameMode(battleState.isPractice ? 'practice' : 'battle');
+        }
+
+        function confirmExitGame() {
+            if (confirm("메인 화면으로 돌아가시겠습니까?")) {
+                document.getElementById('screen-gameplay').classList.add('hidden');
+                document.getElementById('screen-victory').classList.add('hidden');
+                document.getElementById('screen-start').classList.remove('hidden');
+            }
+        }
+
+        function openSettingsModal() {
+            document.getElementById('modal-settings').classList.remove('hidden');
+        }
+        function closeSettingsModal() {
+            document.getElementById('modal-settings').classList.add('hidden');
+        }
+        function openHowToModal() {
+            document.getElementById('modal-howto').classList.remove('hidden');
+        }
+        function closeHowToModal() {
+            document.getElementById('modal-howto').classList.add('hidden');
+        }
+
+        function setSetting(key, val) {
+            audio.playPop();
+            battleState[key] = val;
+
+            // Highlight Active Setting Buttons
+            if (key === 'targetGems') {
+                [2, 3, 5].forEach(num => {
+                    const btn = document.getElementById(`btn-target-${num}`);
+                    if (num === val) {
+                        btn.className = "setting-opt-btn flex-1 py-2 rounded-xl border border-amber-500 bg-amber-500 text-slate-950 font-bold";
+                    } else {
+                        btn.className = "setting-opt-btn flex-1 py-2 rounded-xl border border-slate-600 font-bold";
+                    }
+                });
+                document.getElementById('badge-round-info').textContent = `목표 보석: ${val}개`;
+            } else if (key === 'difficulty') {
+                ['easy', 'normal', 'hard'].forEach(d => {
+                    const btn = document.getElementById(`btn-diff-${d}`);
+                    if (d === val) {
+                        btn.className = "setting-opt-btn flex-1 py-2 rounded-xl border border-amber-500 bg-amber-500 text-slate-950 font-bold";
+                    } else {
+                        btn.className = "setting-opt-btn flex-1 py-2 rounded-xl border border-slate-600 font-bold";
+                    }
+                });
+            } else if (key === 'playMode') {
+                const btnTurn = document.getElementById('btn-mode-turn');
+                const btnSim = document.getElementById('btn-mode-simultaneous');
+                if (val === 'turn') {
+                    btnTurn.className = "setting-opt-btn flex-1 py-2 rounded-xl border border-amber-500 bg-amber-500 text-slate-950 font-bold text-xs md:text-sm";
+                    btnSim.className = "setting-opt-btn flex-1 py-2 rounded-xl border border-slate-600 font-bold text-xs md:text-sm";
+                } else {
+                    btnSim.className = "setting-opt-btn flex-1 py-2 rounded-xl border border-amber-500 bg-amber-500 text-slate-950 font-bold text-xs md:text-sm";
+                    btnTurn.className = "setting-opt-btn flex-1 py-2 rounded-xl border border-slate-600 font-bold text-xs md:text-sm";
+                }
+            }
+        }
+
+        function toggleQType(typeKey) {
+            const idx = battleState.enabledQTypes.indexOf(typeKey);
+            if (idx > -1) {
+                if (battleState.enabledQTypes.length > 1) {
+                    battleState.enabledQTypes.splice(idx, 1);
+                }
+            } else {
+                battleState.enabledQTypes.push(typeKey);
+            }
+        }
+
+        function toggleAudioSetting(enabled) {
+            battleState.soundEnabled = enabled;
+            const btnOn = document.getElementById('btn-sound-on');
+            const btnOff = document.getElementById('btn-sound-off');
+            if (enabled) {
+                btnOn.className = "setting-opt-btn flex-1 py-2 rounded-xl border border-amber-500 bg-amber-500 text-slate-950 font-bold";
+                btnOff.className = "setting-opt-btn flex-1 py-2 rounded-xl border border-slate-600 font-bold";
+            } else {
+                btnOff.className = "setting-opt-btn flex-1 py-2 rounded-xl border border-amber-500 bg-amber-500 text-slate-950 font-bold";
+                btnOn.className = "setting-opt-btn flex-1 py-2 rounded-xl border border-slate-600 font-bold";
+            }
+        }
+
+        function toggleAudio() {
+            battleState.soundEnabled = !battleState.soundEnabled;
+            const btn = document.getElementById('btn-audio-toggle');
+            btn.innerHTML = battleState.soundEnabled ? '<i class="fa-solid fa-volume-high"></i>' : '<i class="fa-solid fa-volume-xmark"></i>';
+        }
+
+        // Post-Game Review Quiz Functions
+        function openReviewQuiz() {
+            document.getElementById('modal-review').classList.remove('hidden');
+            const fb = document.getElementById('review-feedback');
+            fb.classList.add('hidden');
+        }
+
+        function closeReviewQuiz() {
+            document.getElementById('modal-review').classList.add('hidden');
+        }
+
+        function answerReviewQuiz(choice) {
+            const fb = document.getElementById('review-feedback');
+            fb.classList.remove('hidden');
+
+            if (choice === 'blue') {
+                audio.playCorrect();
+                fb.textContent = "⭕ 정답입니다! 파랑 보석이 3개로 더 많으므로 저울이 파랑 쪽으로 기울어집니다.";
+                fb.className = "p-3 bg-emerald-900/90 text-emerald-200 rounded-xl text-center font-jua text-sm md:text-base border border-emerald-500";
+            } else {
+                audio.playWrong();
+                fb.textContent = "❌ 다시 생각해 보세요! 같은 거리에 놓였을 때 개수가 더 많은(더 무거운) 쪽이 내려갑니다.";
+                fb.className = "p-3 bg-rose-900/90 text-rose-200 rounded-xl text-center font-jua text-sm md:text-base border border-rose-500";
+            }
+        }
+
+        // Initialize Window Resize Handlers
+        window.onload = function() {
+            console.log("《기우뚱 무게왕: 보물 저울 배틀》 v1.0 Ready.");
+        };
+    </script>
+
+<a
+  href="index.html"
+  style="
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 9999;
+    padding: 14px 22px;
+    border: 3px solid #24324a;
+    border-radius: 14px;
+    background: white;
+    color: #24324a;
+    font-size: 20px;
+    font-weight: bold;
+    text-decoration: none;
+    box-shadow: 0 4px 0 #24324a;
+  "
+>
+  ← 메인으로
+</a>
+
+</body>
+</html>
